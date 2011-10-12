@@ -20,8 +20,8 @@ func TestQuote(t *testing.T) {
 
 func TestNewRegex(t *testing.T) {
   pattern := "yeah"
-  fmt.Printf("pattern: %v\n", rubex.NewRegex(pattern, 0))
+  rubex.NewRegex(pattern, 0)
   pattern = "yeah(abc"
-  fmt.Printf("pattern: %v\n", rubex.NewRegex(pattern, 0))
+  rubex.NewRegex(pattern, 0)
 
 }

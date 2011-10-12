@@ -1,6 +1,7 @@
 package rubex
 
 const (
+    ONIG_OPTION_DEFAULT              = ONIG_OPTION_NONE
     /* options */
     ONIG_OPTION_NONE                 = 0
     ONIG_OPTION_IGNORECASE           = 1

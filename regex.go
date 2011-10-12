@@ -6,38 +6,90 @@ package rubex
 #include <oniguruma.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-OnigErrorInfo* NewOnigErrorInfo() {
-    OnigErrorInfo *error_info = malloc(sizeof(OnigErrorInfo));
-    return error_info;
-}
-
-void GetPatternStartAndEnd(const char* pattern, int length, OnigUChar **pattern_start, OnigUChar **pattern_end) {
-    *pattern_start = (OnigUChar *) pattern;
-    *pattern_end = (OnigUChar *) (pattern + length);
-}
+#include <string.h>
 
 int GetOnigErrorInfo(char *buf, int error_code, OnigErrorInfo *errorInfo) {
     return onig_error_code_to_str((unsigned char*)buf, error_code, errorInfo);
+}
+
+int NewOnigRegex( char *pattern, int pattern_length, int option,
+                  OnigRegex *regex, OnigEncoding *encoding, OnigErrorInfo **error_info, char **error_buffer) {
+    int ret = ONIG_NORMAL;
+    int error_msg_len = 0;
+
+    OnigUChar *pattern_start = (OnigUChar *) pattern;
+    OnigUChar *pattern_end = (OnigUChar *) (pattern + pattern_length);
+
+    *error_info = (OnigErrorInfo *) malloc(sizeof(OnigErrorInfo));
+    memset(*error_info, 0, sizeof(OnigErrorInfo));
+
+    *encoding = (void*)ONIG_ENCODING_UTF8;
+
+    *error_buffer = (char*) malloc(ONIG_MAX_ERROR_MESSAGE_LEN * sizeof(char));
+
+    memset(*error_buffer, 0, ONIG_MAX_ERROR_MESSAGE_LEN * sizeof(char));
+
+    ret = onig_new(regex, pattern_start, pattern_end, (OnigOptionType)(option), *encoding, OnigDefaultSyntax, *error_info);
+    
+    if (ret != ONIG_NORMAL) {
+        error_msg_len = onig_error_code_to_str((unsigned char*)(*error_buffer), ret, *error_info);
+        if (error_msg_len >= ONIG_MAX_ERROR_MESSAGE_LEN) {
+            error_msg_len = ONIG_MAX_ERROR_MESSAGE_LEN - 1;
+        }
+        (*error_buffer)[error_msg_len] = '\0';
+    }
+    return ret;
 }
 */
 import "C"
 
 import (
   "utf8"
-  "unsafe"
+  //"unsafe"
   "fmt"
 )
 
 type Regex struct {
-  regexPtr C.OnigRegex
+  regex C.OnigRegex
   encoding C.OnigEncoding
-  error *C.OnigErrorInfo
+  errorInfo *C.OnigErrorInfo
+  errorBuf *C.char
+}
+
+func (re *Regex) Free() {
+  if re.regex != nil {
+    C.onig_free(re.regex)
+    re.regex = nil
+  }
+  /*
+  if re.errorInfo != nil {
+    C.free(re.errorInfo)
+    re.errorInfo = nil
+  }*/
+  /*
+  if re.errorBuf != nil {
+    C.free(re.errorBuf)
+    re.errorBuf = nil
+  }*/
 }
 
 func NewRegex(pattern string, option int) (re *Regex) {
+  re = &Regex{}
+  error_code := C.NewOnigRegex(C.CString(pattern), C.int(len(pattern)), C.int(option), &re.regex, &re.encoding, &re.errorInfo, &re.errorBuf)
+  fmt.Printf("error_code: %d\n", error_code)
+  
+  if error_code != C.ONIG_NORMAL {
+    fmt.Printf("error: %q\n", C.GoString(re.errorBuf))
+  }
+  
+  return re
+}
+
+
+/*
+func NewRegex(pattern string, option int) (re *Regex) {
   var regexPtr C.OnigRegex = nil
-  var encoding = C.onigenc_get_default_encoding()
+  var encoding = C.GetOnigEncodingUTF8()
   var error = C.NewOnigErrorInfo()
   re = &Regex{regexPtr: regexPtr, encoding: encoding, error: error}
   var patternStartPtr *C.OnigUChar = nil
@@ -55,6 +107,7 @@ func NewRegex(pattern string, option int) (re *Regex) {
   }
   return re
 }
+*/
 
 func Quote(str string) (string) {
   uStr := utf8.NewString(str) //convert it to utf8
