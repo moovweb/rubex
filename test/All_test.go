@@ -18,11 +18,33 @@ func TestQuote(t *testing.T) {
   }
 }
 
-func TestNewRegex(t *testing.T) {
+func TestNewRegexpGoodPatten(t *testing.T) {
   pattern := "yeah"
-  re := rubex.NewRegex(pattern, 0)
-  re.Free()
-  pattern = "yeah(abc"
-  re = rubex.NewRegex(pattern, 0)
-  re.Free()
+  re, err := rubex.NewRegexp(pattern, 0)
+  defer re.Free()
+  if err != nil {
+    t.Error("good pattern failed")
+  }
 }
+
+func TestNewRegexpBadPatten(t *testing.T) {
+  pattern := "yeah(abc"
+  re, err := rubex.NewRegexp(pattern, 0)
+  defer re.Free()
+  if err == nil {
+    t.Error("bad pattern should fail")
+  }
+}
+
+func TestSimpleSearch(t *testing.T) {
+  pattern := "yeah"
+  str :=  "fine... yeah"
+  re, err := rubex.NewRegexp(pattern, 0)
+  defer re.Free()
+  if err != nil {
+    t.Error("good pattern failed")
+  }
+  re.Find([]byte(str))
+}
+
+
