@@ -45,7 +45,7 @@ import "C"
 
 import (
   "utf8"
-  //"unsafe"
+  "unsafe"
   "fmt"
 )
 
@@ -54,23 +54,6 @@ type Regex struct {
   encoding C.OnigEncoding
   errorInfo *C.OnigErrorInfo
   errorBuf *C.char
-}
-
-func (re *Regex) Free() {
-  if re.regex != nil {
-    C.onig_free(re.regex)
-    re.regex = nil
-  }
-  /*
-  if re.errorInfo != nil {
-    C.free(re.errorInfo)
-    re.errorInfo = nil
-  }*/
-  /*
-  if re.errorBuf != nil {
-    C.free(re.errorBuf)
-    re.errorBuf = nil
-  }*/
 }
 
 func NewRegex(pattern string, option int) (re *Regex) {
@@ -84,7 +67,6 @@ func NewRegex(pattern string, option int) (re *Regex) {
   
   return re
 }
-
 
 /*
 func NewRegex(pattern string, option int) (re *Regex) {
@@ -144,4 +126,20 @@ func Quote(str string) (string) {
   }
   return string(newStr[0:newStrOffset])
 }
+
+func (re *Regex) Free() {
+  if re.regex != nil {
+    C.onig_free(re.regex)
+    re.regex = nil
+  }
+  if re.errorInfo != nil {
+    C.free(unsafe.Pointer(re.errorInfo))
+    re.errorInfo = nil
+  }
+  if re.errorBuf != nil {
+    C.free(unsafe.Pointer(re.errorBuf))
+    re.errorBuf = nil
+  }
+}
+
 
