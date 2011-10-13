@@ -65,9 +65,10 @@ func TestSimpleSearchMultMatches(t *testing.T) {
   }
 
   t0 = time.Nanoseconds()
-  a := re.FindString(str)
+  //a := re.FindString(str)
+  a := []int{}
   t1 = time.Nanoseconds()
-  fmt.Printf("%v %d %d, %v\n", a, len(a), t1-t0, re.GetCaptures())
+  fmt.Printf("--- %v %d %d, %v, %d %v\n", a, len(a), t1-t0, re.FindAllSubmatch([]byte(str), len(str)), re.NumSubexp(), re.ReplaceAll([]byte(str), []byte("\\1")))
 
   t0 = time.Nanoseconds()
   re1, err := regexp.Compile(pattern)
@@ -78,7 +79,8 @@ func TestSimpleSearchMultMatches(t *testing.T) {
   b := re1.FindAllString(str, len(str))
   t1 = time.Nanoseconds()
   fmt.Printf("sys %v %d\n", b, t1-t0)
-  fmt.Printf("sys %v\n", re1.FindAllStringSubmatch(str, len(str)))
+  //fmt.Printf("sys %v\n", re1.FindSubmatchIndex([]byte(str)))
+  fmt.Printf("sys %v\n", re1.FindAllSubmatch([]byte(str), len(str)), re1.FindStringSubmatchIndex(str))
 }
 
 
