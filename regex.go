@@ -15,12 +15,26 @@ import (
   "os"
 )
 
+type strRange []int
+const numMatchStartSize = 4
+const numCapturePerMatchStartSize = 4
+
+type MatchData struct {
+  //captures[0] gives the beginning and ending index of this match
+  //captures[j] (j >=1) gives the beginning and ending index of the j-th capture for this match
+  captures []strRange
+  //namedCaptures["foo"] gives the j index of named capture "foo", then j can be used to get the beginning and ending index of the capture for this match
+  namedCaptures map[string]int
+}
+
 type Regexp struct {
   regex C.OnigRegex
   region *C.OnigRegion
   encoding C.OnigEncoding
   errorInfo *C.OnigErrorInfo
   errorBuf *C.char
+  //matchData[i-1] is the i-th match -- there could be multiple non-overlapping matches for a given pattern
+  matchData []*MatchData
 }
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
@@ -31,6 +45,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
     err = os.NewError(C.GoString(re.errorBuf))
   } else {
     err = nil
+    re.matchData = make([]*MatchData, 0, numMatchStartSize)
   }
   return re, err
 }
@@ -65,6 +80,30 @@ func (re *Regexp) Free() {
   }
 }
 
+/*
+func (re *Regexp) GetCaptureAt(int at) {
+  
+}*/
+
+func (re *Regexp) getStrRange(ref int) (sr strRange) {
+  sr = make([]int, 2)
+  sr[0] = int(C.IntAt(re.region.beg, C.int(ref)))
+  sr[1] = int(C.IntAt(re.region.end, C.int(ref)))
+  return 
+}
+
+func (re *Regexp) processMatch() (sr strRange) {
+  matchData := &MatchData{}
+  matchData.captures = make([]strRange, 0, 1+numCapturePerMatchStartSize) //the first element is not really a capture
+  num := (int (re.region.num_regs))
+  for i := 0; i < num; i ++ {
+    sr := re.getStrRange(i)
+    matchData.captures = append(matchData.captures, sr)
+  }
+  re.matchData = append(re.matchData, matchData)
+  return matchData.captures[0]
+}
+
 func (re *Regexp) find(b []byte, n int) (pos int, err os.Error) {
   ptr := unsafe.Pointer(&b[0])
   pos = int(C.SearchOnigRegex((ptr), C.int(n), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.encoding, re.errorInfo, re.errorBuf))
@@ -76,35 +115,36 @@ func (re *Regexp) find(b []byte, n int) (pos int, err os.Error) {
   return pos, err
 }
 
-func (re *Regexp) findall(b []byte, n int, deliver func(int, int)) (err os.Error) {
+func (re *Regexp) findall(b []byte, n int, deliver func(sr strRange)) (err os.Error) {
   offset := 0
   bp := b[offset:]
   _, err = re.find(bp, n - offset)
   if err == nil {
-    beg := int(C.IntAt(re.region.beg, 0))
-    end := int(C.IntAt(re.region.end, 0))
-    deliver(beg+offset, end+offset)
-    offset = offset + end
+    sr := re.processMatch()
+    sr[0] += offset
+    sr[1] += offset
+    deliver(sr)
+    offset = sr[1]
   }
   for ;err == nil && offset < n; {
     bp = b[offset:]
     _, err = re.find(bp, n - offset)
     if err == nil {
-      beg := int(C.IntAt(re.region.beg, 0))
-      end := int(C.IntAt(re.region.end, 0))
-      deliver(beg+offset, end+offset)
-      offset = offset + end
+      sr := re.processMatch()
+      sr[0] += offset
+      sr[1] += offset
+      deliver(sr)
+      offset = sr[1]
     }
   }
   return err
 }
 
-const startSize = 10
 
 func (re *Regexp) FindAll(b []byte, n int) [][]byte {
-  results := make([][]byte, 0, startSize)
-  re.findall(b, n, func(beg int, end int) {
-    results = append(results, b[beg:end])
+  results := make([][]byte, 0, numMatchStartSize)
+  re.findall(b, n, func(sr strRange) {
+    results = append(results, b[sr[0]:sr[1]])
   })
   if len(results) == 0 {
     return nil  
@@ -114,9 +154,9 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 
 func (re *Regexp) FindAllString(s string, n int) []string {
   b := []byte(s)
-  results := make([]string, 0, startSize)
-  re.findall(b, n, func(beg int, end int) {
-    results = append(results, string(b[beg:end]))
+  results := make([]string, 0, numMatchStartSize)
+  re.findall(b, n, func(sr strRange) {
+    results = append(results, string(b[sr[0]:sr[1]]))
   })
   
   if len(results) == 0 {
@@ -126,11 +166,11 @@ func (re *Regexp) FindAllString(s string, n int) []string {
 }
 
 func (re *Regexp) FindAllIndex(b []byte, n int) [][]int { 
-  results := make([][]int, 0, startSize)
-  re.findall(b, n, func(beg int, end int) {
+  results := make([][]int, 0, numMatchStartSize)
+  re.findall(b, n, func(sr strRange) {
     m := make([]int,2)
-    m[0] = beg
-    m[1] = end
+    m[0] = sr[0]
+    m[1] = sr[1]
     results = append(results, m)
   })
   if len(results) == 0 {
@@ -151,12 +191,8 @@ func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 func (re *Regexp) Find(b []byte) []byte {
   _, err := re.find(b, len(b))
   if err == nil {
-    num_matches := (int (re.region.num_regs))
-    if num_matches > 0 {
-      beg := int(C.IntAt(re.region.beg, 0))
-      end := int(C.IntAt(re.region.end, 0))
-      return b[beg:end]
-    }
+    sr := re.getStrRange(0)
+    return b[sr[0]:sr[1]]
   }
   return nil  
  
