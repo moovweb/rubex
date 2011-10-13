@@ -65,9 +65,9 @@ func TestSimpleSearchMultMatches(t *testing.T) {
   }
 
   t0 = time.Nanoseconds()
-  a := re.FindAllString(str, len(str))
+  a := re.FindString(str)
   t1 = time.Nanoseconds()
-  fmt.Printf("%v %d %d\n", a, len(a), t1-t0)
+  fmt.Printf("%v %d %d, %v\n", a, len(a), t1-t0, re.GetCaptures())
 
   t0 = time.Nanoseconds()
   re1, err := regexp.Compile(pattern)

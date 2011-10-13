@@ -80,10 +80,21 @@ func (re *Regexp) Free() {
   }
 }
 
-/*
-func (re *Regexp) GetCaptureAt(int at) {
-  
-}*/
+func (re *Regexp) GetCaptureAt(at int) (sr strRange) {
+  sr = nil
+  if len(re.matchData) > 0 && at < len(re.matchData[0].captures) {
+    sr = re.matchData[0].captures[at]
+  }
+  return
+}
+
+func (re *Regexp) GetCaptures()(srs []strRange) {
+  srs = nil
+  if len(re.matchData) > 0 {
+    srs = re.matchData[0].captures
+  }
+  return
+}
 
 func (re *Regexp) getStrRange(ref int) (sr strRange) {
   sr = make([]int, 2)
@@ -115,7 +126,7 @@ func (re *Regexp) find(b []byte, n int) (pos int, err os.Error) {
   return pos, err
 }
 
-func (re *Regexp) findall(b []byte, n int, deliver func(sr strRange)) (err os.Error) {
+func (re *Regexp) findAll(b []byte, n int, deliver func(sr strRange)) (err os.Error) {
   offset := 0
   bp := b[offset:]
   _, err = re.find(bp, n - offset)
@@ -140,10 +151,41 @@ func (re *Regexp) findall(b []byte, n int, deliver func(sr strRange)) (err os.Er
   return err
 }
 
+func (re *Regexp) Find(b []byte) []byte {
+  _, err := re.find(b, len(b))
+  if err == nil {
+    sr := re.processMatch()
+    return b[sr[0]:sr[1]]
+  }
+  return nil  
+ 
+}
+
+func (re *Regexp) FindIndex(b []byte) (loc []int) {
+  _, err := re.find(b, len(b))
+  if err == nil {
+    return re.processMatch()
+  }
+  return nil
+}
+
+func (re *Regexp) FindString(s string) string {
+  b := []byte(s)
+  mb := re.Find(b)
+  if mb == nil {
+    return ""
+  }
+  return string(mb)
+}
+
+func (re *Regexp) FindStringIndex(s string) []int {
+  b := []byte(s)
+  return re.FindIndex(b)
+}
 
 func (re *Regexp) FindAll(b []byte, n int) [][]byte {
   results := make([][]byte, 0, numMatchStartSize)
-  re.findall(b, n, func(sr strRange) {
+  re.findAll(b, n, func(sr strRange) {
     results = append(results, b[sr[0]:sr[1]])
   })
   if len(results) == 0 {
@@ -155,7 +197,7 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 func (re *Regexp) FindAllString(s string, n int) []string {
   b := []byte(s)
   results := make([]string, 0, numMatchStartSize)
-  re.findall(b, n, func(sr strRange) {
+  re.findAll(b, n, func(sr strRange) {
     results = append(results, string(b[sr[0]:sr[1]]))
   })
   
@@ -167,7 +209,7 @@ func (re *Regexp) FindAllString(s string, n int) []string {
 
 func (re *Regexp) FindAllIndex(b []byte, n int) [][]int { 
   results := make([][]int, 0, numMatchStartSize)
-  re.findall(b, n, func(sr strRange) {
+  re.findAll(b, n, func(sr strRange) {
     m := make([]int,2)
     m[0] = sr[0]
     m[1] = sr[1]
@@ -183,17 +225,24 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
   b := []byte(s)
   return re.FindAllIndex(b, n)
 }
+/*
+func (re *Regexp) FindSubmatch(b []byte) [][]byte {
+  _, err = re.find(bp, n - offset)
+  if err == nil {  
+    captures = re.GetCaptures()
+    for cap range captures {
+      
+    }
+  }
+  return nil
+}
+
+func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
+  return nil
+}
 
 func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
   return nil
 }
 
-func (re *Regexp) Find(b []byte) []byte {
-  _, err := re.find(b, len(b))
-  if err == nil {
-    sr := re.getStrRange(0)
-    return b[sr[0]:sr[1]]
-  }
-  return nil  
- 
-}
+*/
