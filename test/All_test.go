@@ -4,6 +4,7 @@ import (
   "rubex"
   "testing"
   "fmt"
+  "regexp"
 )
 
 func TestQuote(t *testing.T) {
@@ -37,14 +38,45 @@ func TestNewRegexpBadPatten(t *testing.T) {
 }
 
 func TestSimpleSearch(t *testing.T) {
-  pattern := "yeah"
-  str :=  "fine... yeah"
+  pattern := "a(.*)b|[e-f]+"
+  str :=  "zzzzaffffffffb"
+  re, err := rubex.NewRegexp(pattern, rubex.ONIG_OPTION_DEFAULT)
+  defer re.Free()
+  if err != nil {
+    t.Error("good pattern failed")
+  }
+  fmt.Printf("%v\n", re.FindAllString(str, len(str)))
+  re1, err := regexp.Compile(pattern)
+  fmt.Printf("sys %v\n", re1.FindAllString(str, len(str)))
+  fmt.Printf("sys %v\n", re1.FindAllStringSubmatch(str, len(str)))
+}
+
+func TestSimpleSearchMultMatches(t *testing.T) {
+  pattern := "a(b*)"
+  str :=  "abbaab"
+  re, err := rubex.NewRegexp(pattern, rubex.ONIG_OPTION_DEFAULT)
+  defer re.Free()
+  if err != nil {
+    t.Error("good pattern failed")
+  }
+  a := re.FindAllString(str, len(str))
+  fmt.Printf("%v %d\n", a, len(a))
+  re1, err := regexp.Compile(pattern)
+  fmt.Printf("sys %v\n", re1.FindAllString(str, len(str)))
+  fmt.Printf("sys %v\n", re1.FindAllStringSubmatch(str, len(str)))
+}
+
+
+
+func TestSimpleSearchNoResult(t *testing.T) {
+  pattern := "c(.*)b|[g-h]+"
+  str :=  "zzzzaffffffffb"
   re, err := rubex.NewRegexp(pattern, 0)
   defer re.Free()
   if err != nil {
     t.Error("good pattern failed")
   }
-  re.Find([]byte(str))
+  fmt.Printf("%v\n", re.FindAllString(str, len(str)))
+  re1, err := regexp.Compile(pattern)
+  fmt.Printf("%v\n", re1.FindAllString(str, len(str)))
 }
-
-

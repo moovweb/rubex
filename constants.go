@@ -18,4 +18,9 @@ const (
     ONIG_OPTION_NOTEOL               = (ONIG_OPTION_NOTBOL << 1)
     ONIG_OPTION_POSIX_REGION         = (ONIG_OPTION_NOTEOL << 1)
     ONIG_OPTION_MAXBIT               = ONIG_OPTION_POSIX_REGION  /* limit */
+
+    ONIG_NORMAL                      =                      0
+    ONIG_MISMATCH                    =                     -1
+
+    ONIG_MISMATCH_STR                =                     "mismatch"
 )

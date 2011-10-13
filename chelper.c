@@ -45,23 +45,24 @@ int SearchOnigRegex( void *str, int str_length, int option,
     OnigUChar *search_end = str_end;
 
     ret = onig_search(regex, str_start, str_end, search_start, search_end, region, option);
-    if (ret > 0) {
-        int i;
-        fprintf(stderr, "match at %d\n", ret);
-        for (i = 0; i < region->num_regs; i++) {
-            fprintf(stderr, "%d: (%d-%d)\n", i, region->beg[i], region->end[i]);
-        }
-    }
-    else if (ret == ONIG_MISMATCH) {
-        fprintf(stderr, "search fail\n");
-    }
-    else { /* error */
+    if (ret < 0) {
         error_msg_len = onig_error_code_to_str((unsigned char*)(error_buffer), ret, error_info);
         if (error_msg_len >= ONIG_MAX_ERROR_MESSAGE_LEN) {
             error_msg_len = ONIG_MAX_ERROR_MESSAGE_LEN - 1;
         }
         error_buffer[error_msg_len] = '\0';
     }
+    else {
+        int i;
+        fprintf(stderr, "match at %d\n", ret);
+        for (i = 0; i < region->num_regs; i++) {
+            fprintf(stderr, "%d: (%d-%d)\n", i, region->beg[i], region->end[i]);
+        }
+    }
     return ret;
+}
+
+int IntAt(int *int_array, int index) {
+    return (int)int_array[index];
 }
 
