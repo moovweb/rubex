@@ -34,7 +34,7 @@ type Regexp struct {
   encoding C.OnigEncoding
   errorInfo *C.OnigErrorInfo
   errorBuf *C.char
-  matchData *MatchData
+  //matchData *MatchData
 }
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
@@ -45,9 +45,9 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
     err = os.NewError(C.GoString(re.errorBuf))
   } else {
     err = nil
-    re.matchData = &MatchData{}
-    re.matchData.captures = make([][]strRange, 0, numMatchStartSize)
-    re.matchData.namedCaptures = make(map[string]int)
+    //re.matchData = &MatchData{}
+    //re.matchData.captures = make([][]strRange, 0, numMatchStartSize)
+    //re.matchData.namedCaptures = make(map[string]int)
   }
   return re, err
 }
@@ -82,6 +82,7 @@ func (re *Regexp) Free() {
   }
 }
 
+/*
 func (re *Regexp) GetCaptureAt(at int) (sr strRange) {
   sr = nil
   if len(re.matchData.captures) > 0 && at < len(re.matchData.captures[0]) {
@@ -101,7 +102,7 @@ func (re *Regexp) GetCaptures()(srs []strRange) {
 func (re *Regexp) GetAllCaptures()(srs [][]strRange) {
   return re.matchData.captures
 }
-
+*/
 func (re *Regexp) getStrRange(ref int) (sr strRange) {
   sr = make([]int, 2)
   sr[0] = int(C.IntAt(re.region.beg, C.int(ref)))
@@ -110,7 +111,7 @@ func (re *Regexp) getStrRange(ref int) (sr strRange) {
 }
 
 func (re *Regexp) processMatch() (captures []strRange) {
-  matchData := re.matchData
+  //matchData := re.matchData
   num := (int (re.region.num_regs))
   if num <= 0 {
     panic("cannot have 0 captures when processing a match")
@@ -121,7 +122,7 @@ func (re *Regexp) processMatch() (captures []strRange) {
   for i := 0; i < num; i ++ {
     captures[i] = re.getStrRange(i)
   }
-  matchData.captures = append(matchData.captures, captures)
+  //matchData.captures = append(matchData.captures, captures)
   return
 }
 
@@ -416,7 +417,7 @@ func fillCapturedValues(repl []byte, capturedBytes [][]byte) []byte {
       if capNum > len(capturedBytes) {
         panic(fmt.Sprintf("invalid capture number: %d", capNum))
       }
-      capBytes := capturedBytes[capNum]
+      capBytes := capturedBytes[capNum-1]
       fmt.Printf("capBytes %v\n", capBytes)
       for _, c := range capBytes {
         newRepl = append(newRepl, c)
