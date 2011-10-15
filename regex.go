@@ -401,9 +401,7 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) Match(b []byte) bool {
-  fmt.Printf("pattern : %v str: %v\n", []byte(re.pattern), b)
   err := re.find(b, len(b), func(caps []strRange) {})
-  fmt.Printf("err in match: %v, %v\n", err, b)
   return err == nil
 }
 
