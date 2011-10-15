@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package test
+package rubex
 
 import (
 	"fmt"
 	"strings"
-  "regexp"
 	"testing"
 )
 
@@ -122,7 +121,7 @@ func build(n int, x ...int) [][]int {
 
 func TestFind(t *testing.T) {
 	for _, test := range findTests {
-		re := regexp.MustCompile(test.pat)
+		re := MustCompile(test.pat)
 		if re.String() != test.pat {
 			t.Errorf("String() = `%s`; should be `%s`", re.String(), test.pat)
 		}
@@ -145,7 +144,7 @@ func TestFind(t *testing.T) {
 
 func TestFindString(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindString(test.text)
+		result := MustCompile(test.pat).FindString(test.text)
 		switch {
 		case len(test.matches) == 0 && len(result) == 0:
 			// ok
@@ -183,19 +182,19 @@ func testFindIndex(test *FindTest, result []int, t *testing.T) {
 
 func TestFindIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindIndex(&test, regexp.MustCompile(test.pat).FindIndex([]byte(test.text)), t)
+		testFindIndex(&test, MustCompile(test.pat).FindIndex([]byte(test.text)), t)
 	}
 }
 
 func TestFindStringIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindIndex(&test, regexp.MustCompile(test.pat).FindStringIndex(test.text), t)
+		testFindIndex(&test, MustCompile(test.pat).FindStringIndex(test.text), t)
 	}
 }
 
 func TestFindReaderIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindIndex(&test, regexp.MustCompile(test.pat).FindReaderIndex(strings.NewReader(test.text)), t)
+		testFindIndex(&test, MustCompile(test.pat).FindReaderIndex(strings.NewReader(test.text)), t)
 	}
 }
 
@@ -203,7 +202,7 @@ func TestFindReaderIndex(t *testing.T) {
 
 func TestFindAll(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindAll([]byte(test.text), -1)
+		result := MustCompile(test.pat).FindAll([]byte(test.text), -1)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -228,7 +227,7 @@ func TestFindAll(t *testing.T) {
 
 func TestFindAllString(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindAllString(test.text, -1)
+		result := MustCompile(test.pat).FindAllString(test.text, -1)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -274,13 +273,13 @@ func testFindAllIndex(test *FindTest, result [][]int, t *testing.T) {
 
 func TestFindAllIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllIndex(&test, regexp.MustCompile(test.pat).FindAllIndex([]byte(test.text), -1), t)
+		testFindAllIndex(&test, MustCompile(test.pat).FindAllIndex([]byte(test.text), -1), t)
 	}
 }
 
 func TestFindAllStringIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllIndex(&test, regexp.MustCompile(test.pat).FindAllStringIndex(test.text, -1), t)
+		testFindAllIndex(&test, MustCompile(test.pat).FindAllStringIndex(test.text, -1), t)
 	}
 }
 
@@ -308,7 +307,7 @@ func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte,
 
 func TestFindSubmatch(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindSubmatch([]byte(test.text))
+		result := MustCompile(test.pat).FindSubmatch([]byte(test.text))
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -344,7 +343,7 @@ func testSubmatchString(test *FindTest, n int, submatches []int, result []string
 
 func TestFindStringSubmatch(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindStringSubmatch(test.text)
+		result := MustCompile(test.pat).FindStringSubmatch(test.text)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -385,19 +384,19 @@ func testFindSubmatchIndex(test *FindTest, result []int, t *testing.T) {
 
 func TestFindSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindSubmatchIndex(&test, regexp.MustCompile(test.pat).FindSubmatchIndex([]byte(test.text)), t)
+		testFindSubmatchIndex(&test, MustCompile(test.pat).FindSubmatchIndex([]byte(test.text)), t)
 	}
 }
 
 func TestFindStringSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindSubmatchIndex(&test, regexp.MustCompile(test.pat).FindStringSubmatchIndex(test.text), t)
+		testFindSubmatchIndex(&test, MustCompile(test.pat).FindStringSubmatchIndex(test.text), t)
 	}
 }
 
 func TestFindReaderSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindSubmatchIndex(&test, regexp.MustCompile(test.pat).FindReaderSubmatchIndex(strings.NewReader(test.text)), t)
+		testFindSubmatchIndex(&test, MustCompile(test.pat).FindReaderSubmatchIndex(strings.NewReader(test.text)), t)
 	}
 }
 
@@ -405,7 +404,7 @@ func TestFindReaderSubmatchIndex(t *testing.T) {
 
 func TestFindAllSubmatch(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindAllSubmatch([]byte(test.text), -1)
+		result := MustCompile(test.pat).FindAllSubmatch([]byte(test.text), -1)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -425,7 +424,7 @@ func TestFindAllSubmatch(t *testing.T) {
 
 func TestFindAllStringSubmatch(t *testing.T) {
 	for _, test := range findTests {
-		result := regexp.MustCompile(test.pat).FindAllStringSubmatch(test.text, -1)
+		result := MustCompile(test.pat).FindAllStringSubmatch(test.text, -1)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -462,12 +461,12 @@ func testFindAllSubmatchIndex(test *FindTest, result [][]int, t *testing.T) {
 
 func TestFindAllSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllSubmatchIndex(&test, regexp.MustCompile(test.pat).FindAllSubmatchIndex([]byte(test.text), -1), t)
+		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllSubmatchIndex([]byte(test.text), -1), t)
 	}
 }
 
 func TestFindAllStringSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllSubmatchIndex(&test, regexp.MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
+		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
 	}
 }

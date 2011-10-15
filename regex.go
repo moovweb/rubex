@@ -13,10 +13,13 @@ import (
   "unsafe"
   "fmt"
   "os"
+  "io"
+  "utf8"
 )
 
 type strRange []int
 const numMatchStartSize = 4
+const numReadBufferStartSize = 256
 
 type MatchData struct {
   //captures[i-1] is the i-th match -- there could be multiple non-overlapping matches for a given pattern
@@ -41,7 +44,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
   re = &Regexp{pattern: pattern}
   error_code := C.NewOnigRegex(C.CString(pattern), C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
   if error_code != C.ONIG_NORMAL {
-    fmt.Printf("error: %q\n", C.GoString(re.errorBuf))
+    fmt.Printf("@@@ compile error: %q\n", C.GoString(re.errorBuf))
     err = os.NewError(C.GoString(re.errorBuf))
   } else {
     err = nil
@@ -127,6 +130,10 @@ func (re *Regexp) processMatch() (captures []strRange) {
 }
 
 func (re *Regexp) find(b []byte, n int, deliver func([]strRange)) (err os.Error) {
+  if n == 0 {
+    b = []byte{0}
+    n = 1
+  }
   ptr := unsafe.Pointer(&b[0])
   pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.encoding, re.errorInfo, re.errorBuf))
   if pos >= 0 {
@@ -164,6 +171,9 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
       match := captures[0]
       //move offset to the ending index of the current match and prepare to find the next non-overlapping match
       offset = match[1]
+    } else {
+      fmt.Printf("findAll Error: %q\n", err)
+      break
     }
   }
   return
@@ -391,7 +401,9 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) Match(b []byte) bool {
+  fmt.Printf("pattern : %v str: %v\n", []byte(re.pattern), b)
   err := re.find(b, len(b), func(caps []strRange) {})
+  fmt.Printf("err in match: %v, %v\n", err, b)
   return err == nil
 }
 
@@ -405,20 +417,15 @@ func (re *Regexp) NumSubexp() int {
 }
 
 func fillCapturedValues(repl []byte, capturedBytes [][]byte) []byte {
-  fmt.Printf("capturedBytes %v\n", capturedBytes)
   newRepl := make([]byte, 0, len(repl) * 3)
   inEscapeMode := false
   for _, ch := range repl {
-    fmt.Printf("ch: xx %v %v\n", string(ch), inEscapeMode)
     if inEscapeMode && ch <= byte('9') && byte('1') <= ch {
-      fmt.Printf("ch yy: %v\n", string(ch))
       capNum := int(ch - byte('0'))
-      fmt.Printf("capNum %v\n", capNum)
-      if capNum > len(capturedBytes) {
+      if capNum > len(capturedBytes) - 1  {
         panic(fmt.Sprintf("invalid capture number: %d", capNum))
       }
-      capBytes := capturedBytes[capNum-1]
-      fmt.Printf("capBytes %v\n", capBytes)
+      capBytes := capturedBytes[capNum]
       for _, c := range capBytes {
         newRepl = append(newRepl, c)
       }
@@ -432,26 +439,23 @@ func fillCapturedValues(repl []byte, capturedBytes [][]byte) []byte {
       inEscapeMode = !inEscapeMode
     }
   }
-  fmt.Printf("newRepl: %v\n", string(newRepl))
+  //fmt.Printf("newRepl: %v\n", string(newRepl))
   return newRepl
 }
 
-func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, [][]byte) []byte) []byte {
   allCaptures := re.findAllSubmatchIndex(src, len(src))
+  fmt.Printf("allCaptures: %v\n", allCaptures)
   if allCaptures == nil {
     return src
   }
-  fmt.Printf("allCaptures = %v\n", allCaptures)
-  newSrc := make([]byte, 0, len(src))
-  
+  dest := make([]byte, 0, len(src))
   for i, captures := range allCaptures {
     capturedBytes := make([][]byte, 0, len(captures))
     for _, cap := range captures {
       capturedBytes = append(capturedBytes, src[cap[0]:cap[1]])
     }
-    newRepl := fillCapturedValues(repl, capturedBytes[1:])
-    fmt.Printf("newRepl = %q\n", newRepl)
-    
+    newRepl := replFunc(repl, capturedBytes)
     match := captures[0]
     prevEnd := 0
     if i > 0 {
@@ -460,31 +464,93 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
     }
     if match[0] > prevEnd {
       for _,c := range src[prevEnd:match[0]] {
-        newSrc = append(newSrc, c)
+        dest = append(dest, c)
       }
     }
-
-    fmt.Printf("newSrc: %v\n", string(newSrc))
     for _,c := range newRepl {
-      newSrc = append(newSrc, c)
+      dest = append(dest, c)
     }
-    fmt.Printf("newSrc: %v\n", string(newSrc))
   }
-  
   lastEnd := allCaptures[len(allCaptures)-1][0][1]
   if lastEnd < len(src) { 
     if lastEnd < len(src) {
       for _, c:= range src[lastEnd:] {
-        newSrc = append(newSrc, c)
+        dest = append(dest, c)
       }
     }
-
-    fmt.Printf("newSrc: %v\n", string(newSrc))
   }
-  fmt.Printf("newSrc: %v\n", string(newSrc))
-  return newSrc
+  return dest
+}
+
+func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+  return re.replaceAll(src, repl, fillCapturedValues)
+}
+
+func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
+  return re.replaceAll(src, []byte(""), func(_ []byte, capturedBytes [][]byte) []byte {
+    return repl(capturedBytes[0])
+  })
+}
+
+func (re *Regexp) ReplaceAllString(src, repl string) string {
+  return string(re.ReplaceAll([]byte(src), []byte(repl)))
+}
+
+func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
+  srcB := []byte(src)
+  destB := re.replaceAll(srcB, []byte(""), func(_ []byte, capturedBytes [][]byte) []byte {
+    return []byte(repl(string(capturedBytes[0])))
+  })
+  return string(destB)
 }
 
 func (re *Regexp) String() string {
   return re.pattern
+}
+
+func grow_buffer(b []byte, n int) []byte {
+  if len(b)+n > cap(b) {
+    buf := make([]byte, 2*cap(b)+n)
+    copy(buf, b)
+    return buf
+  }
+  return b
+}
+
+func fromReader(r io.RuneReader) []byte {
+  b := make([]byte, 0, numReadBufferStartSize)
+  offset := 0
+  var err os.Error = nil
+  for ;err == nil; {
+    rune, runeWidth, err := r.ReadRune()
+    if err == nil {
+      b = grow_buffer(b, runeWidth)
+      writeWidth := utf8.EncodeRune(b[offset:], rune)
+      if runeWidth != writeWidth {
+        panic("reading rune width not equal to the written rune width")
+      }
+      offset += writeWidth
+    }
+  }
+  return b
+}
+
+func (re *Regexp) FindReaderIndex(r io.RuneReader) []int {
+  b := fromReader(r)
+  return re.FindIndex(b)
+}
+
+func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
+  b := fromReader(r)
+  return re.FindSubmatchIndex(b)
+}
+
+func (re *Regexp) MatchReader(r io.RuneReader) bool {
+  b := fromReader(r)
+  return re.Match(b)  
+}
+
+func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
+  //no easy way to implement this
+  return "", false
 }
