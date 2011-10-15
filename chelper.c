@@ -34,14 +34,14 @@ int NewOnigRegex( char *pattern, int pattern_length, int option,
     return ret;
 }
 
-int SearchOnigRegex( void *str, int str_length, int option,
+int SearchOnigRegex( void *str, int str_length, int offset, int option,
                   OnigRegex regex, OnigRegion *region, OnigEncoding encoding, OnigErrorInfo *error_info, char *error_buffer) {
     int ret = ONIG_MISMATCH;
     int error_msg_len = 0;
 
     OnigUChar *str_start = (OnigUChar *) str;
     OnigUChar *str_end = (OnigUChar *) (str_start + str_length);
-    OnigUChar *search_start = str_start;
+    OnigUChar *search_start = (OnigUChar *)(str_start + offset);
     OnigUChar *search_end = str_end;
 
     ret = onig_search(regex, str_start, str_end, search_start, search_end, region, option);

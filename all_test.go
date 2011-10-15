@@ -195,15 +195,15 @@ var replaceFuncTests = []ReplaceFuncTest{
 func TestReplaceAll(t *testing.T) {
 	for _, tc := range replaceTests {
 		re, err := Compile(tc.pattern)
-    fmt.Printf("pattern in replaceAll: %q %v\n", tc.pattern, err)
+    fmt.Printf("pattern in replaceAll: %q; input %q; error: %v\n", tc.pattern, tc.input, err)
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
 			continue
 		}
-    fmt.Printf("pattern in replaceAll: string: %q, replacement %q\n", tc.input, tc.replacement) 
 		actual := re.ReplaceAllString(tc.input, tc.replacement)
-    fmt.Printf("pattern in replaceAll: actual %q\n", actual)
 		if actual != tc.output {
+    fmt.Printf("pattern in replaceAll: actual %q, expected output: %v\n", actual, tc.output)
+    fmt.Printf("pattern in replaceAll: string: %q, replacement %q\n", tc.input, tc.replacement) 
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}

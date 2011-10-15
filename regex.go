@@ -129,13 +129,13 @@ func (re *Regexp) processMatch() (captures []strRange) {
   return
 }
 
-func (re *Regexp) find(b []byte, n int, deliver func([]strRange)) (err os.Error) {
+func (re *Regexp) find(b []byte, n int, offset int, deliver func([]strRange)) (err os.Error) {
   if n == 0 {
     b = []byte{0}
-    n = 1
+    n = 0
   }
   ptr := unsafe.Pointer(&b[0])
-  pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.encoding, re.errorInfo, re.errorBuf))
+  pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.encoding, re.errorInfo, re.errorBuf))
   if pos >= 0 {
     err = nil
     deliver(re.processMatch())
@@ -158,30 +158,43 @@ func adjustStrRangeByOffset(captures []strRange, offset int) []strRange {
 func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Error) {
   var captures []strRange
   err = nil; offset := 0
-  for ;err == nil && offset < n; {
-    bp := b[offset:]
-    err = re.find(bp, n - offset, func(kaps []strRange) {
+  hasMatched := false
+  for ;err == nil && offset <= n; {
+    err = re.find(b, n, offset, func(kaps []strRange) {
       captures = kaps
     })
     if err == nil {
+      hasMatched = true
       //we need to adjust the captures' indexes by offset because the search starts at offset
-      captures = adjustStrRangeByOffset(captures, offset)
+      //captures = adjustStrRangeByOffset(captures, offset)
       deliver(captures)
       //remember the first capture is in fact the current match
       match := captures[0]
       //move offset to the ending index of the current match and prepare to find the next non-overlapping match
       offset = match[1]
+      //if match[0] == match[1], it means the current match does not advance the search. we need to exit the loop to avoid getting stuck here.
+      if match[0] == match[1] {
+        offset += 1 //TODO handle encoding
+      }
+      fmt.Printf("offset = %d\n", offset)
     } else {
-      fmt.Printf("findAll Error: %q\n", err)
       break
     }
   }
+  //if there has been a match, we should not return error
+  if hasMatched {
+    err = nil
+  }
+  if err != nil {
+    fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
+  }
+  
   return
 }
 
 func (re *Regexp) FindIndex(b []byte) (loc []int) {
   var captures []strRange
-  err := re.find(b, len(b), func(caps []strRange) {
+  err := re.find(b, len(b), 0, func(caps []strRange) {
     captures = caps
   })
   if err == nil {
@@ -258,7 +271,7 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) findSubmatchIndex(b []byte) (captures []strRange) {
-  err := re.find(b, len(b), func(caps []strRange) {
+  err := re.find(b, len(b), 0, func(caps []strRange) {
     captures = caps
   })
   if err != nil {
@@ -330,6 +343,7 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 func (re *Regexp) findAllSubmatchIndex(b []byte, n int) [][]strRange {
   allCaptures := make([][]strRange, 0, numMatchStartSize) 
   re.findAll(b, n, func(caps []strRange) {
+    fmt.Printf("captures: %v\n", caps)
     allCaptures = append(allCaptures, caps)
   })
   if len(allCaptures) == 0 { 
@@ -401,7 +415,7 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) Match(b []byte) bool {
-  err := re.find(b, len(b), func(caps []strRange) {})
+  err := re.find(b, len(b), 0, func(caps []strRange) {})
   return err == nil
 }
 
