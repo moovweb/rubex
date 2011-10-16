@@ -44,7 +44,6 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
   re = &Regexp{pattern: pattern}
   error_code := C.NewOnigRegex(C.CString(pattern), C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
   if error_code != C.ONIG_NORMAL {
-    fmt.Printf("@@@ compile error: %q\n", C.GoString(re.errorBuf))
     err = os.NewError(C.GoString(re.errorBuf))
   } else {
     err = nil
@@ -119,43 +118,46 @@ func (re *Regexp) processMatch() (captures []strRange) {
   if num <= 0 {
     panic("cannot have 0 captures when processing a match")
   }
-  captures = make([]strRange, num)
+  captures = make([]strRange, 0, num)
   //the first element indicates the beginning and ending indexes of the match
   //the rests are the beginning and ending indexes of the captures
   for i := 0; i < num; i ++ {
-    captures[i] = re.getStrRange(i)
+    sr := re.getStrRange(i)
+    //sometimes we may encounter negative index, e.g. string: aacc, and pattern: a*(|(b))c*. A bug in onig? Ruby shows the same.
+    //we should skip such 
+    if sr[0] >= 0 && sr[1] >= 0 {
+      captures = append(captures, sr)
+    }
+    
+    fmt.Printf("in processMatch sr = %v num = %d\n", sr, num)
+    fmt.Printf("in processMatch captures = %v\n", captures)
   }
   //matchData.captures = append(matchData.captures, captures)
+  fmt.Printf("in processMatch captures = %v\n", captures)
   return
 }
 
 func (re *Regexp) find(b []byte, n int, offset int, deliver func([]strRange)) (err os.Error) {
   if n == 0 {
     b = []byte{0}
-    n = 0
   }
   ptr := unsafe.Pointer(&b[0])
   pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.encoding, re.errorInfo, re.errorBuf))
   if pos >= 0 {
     err = nil
-    deliver(re.processMatch())
+    captures := re.processMatch()
+    fmt.Printf("in find captures = %v\n", captures)
+    deliver(captures)
   } else {
     err = os.NewError(C.GoString(re.errorBuf))
   }
   return
 }
 
-func adjustStrRangeByOffset(captures []strRange, offset int) []strRange {
-  if offset > 0 {
-    for _, capture := range captures {
-      capture[0] += offset
-      capture[1] += offset
-    }
-  }
-  return captures
-}
-
 func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Error) {
+  if n < 0 {
+    n = len(b)
+  }
   var captures []strRange
   err = nil; offset := 0
   hasMatched := false
@@ -163,6 +165,7 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
     err = re.find(b, n, offset, func(kaps []strRange) {
       captures = kaps
     })
+    fmt.Printf("captures = %v err = %v\n", captures, err)
     if err == nil {
       hasMatched = true
       //we need to adjust the captures' indexes by offset because the search starts at offset
@@ -189,6 +192,7 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
     fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
   }
   
+  fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
   return
 }
 
@@ -273,7 +277,9 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 func (re *Regexp) findSubmatchIndex(b []byte) (captures []strRange) {
   err := re.find(b, len(b), 0, func(caps []strRange) {
     captures = caps
+    fmt.Printf("caps: %v\n", caps)
   })
+  fmt.Printf("captures: %v\n", captures)
   if err != nil {
     captures = nil
   }
@@ -346,6 +352,8 @@ func (re *Regexp) findAllSubmatchIndex(b []byte, n int) [][]strRange {
     fmt.Printf("captures: %v\n", caps)
     allCaptures = append(allCaptures, caps)
   })
+
+  fmt.Printf("allCaptures: %v\n", allCaptures)
   if len(allCaptures) == 0 { 
     return nil
   }
@@ -520,28 +528,33 @@ func (re *Regexp) String() string {
   return re.pattern
 }
 
-func grow_buffer(b []byte, n int) []byte {
-  if len(b)+n > cap(b) {
+func grow_buffer(b []byte, offset int, n int) []byte {
+  fmt.Printf("offset = %d cap %d\n", offset, cap(b))
+  if offset+n > cap(b) {
     buf := make([]byte, 2*cap(b)+n)
-    copy(buf, b)
+    copy(buf, b[:offset])
     return buf
   }
   return b
 }
 
 func fromReader(r io.RuneReader) []byte {
-  b := make([]byte, 0, numReadBufferStartSize)
+  b := make([]byte, numReadBufferStartSize)
   offset := 0
   var err os.Error = nil
   for ;err == nil; {
     rune, runeWidth, err := r.ReadRune()
+    fmt.Printf("runeWidth = %d err = %v\n", runeWidth, err)
     if err == nil {
-      b = grow_buffer(b, runeWidth)
+      fmt.Printf("runeWidth = %d\n", runeWidth)
+      b = grow_buffer(b, offset, runeWidth)
       writeWidth := utf8.EncodeRune(b[offset:], rune)
       if runeWidth != writeWidth {
         panic("reading rune width not equal to the written rune width")
       }
       offset += writeWidth
+    } else {
+      break
     }
   }
   return b
