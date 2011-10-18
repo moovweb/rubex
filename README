@@ -17,3 +17,7 @@ To run tests
 To clean up 
 
    gb -c -m
+
+To run benchmarks
+
+   gotest -test.bench="."
