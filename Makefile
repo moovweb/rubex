@@ -6,6 +6,7 @@ CFLAGS=-I/usr/local/include
 TARG=rubex
 
 CGOFILES=\
+  cgoflags.go\
   regex.go\
 
 GOFILES=\

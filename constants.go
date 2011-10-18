@@ -1,5 +1,10 @@
 package rubex
 
+/*
+#cgo LDFLAGS: -L/usr/local/lib -lonig
+#cgo CFLAGS: -I/usr/local/include
+*/
+
 const (
     ONIG_OPTION_DEFAULT              = ONIG_OPTION_NONE
     /* options */

@@ -1,8 +1,6 @@
 package rubex
 
 /*
-#cgo LDFLAGS: -L/usr/local/lib -lonig
-#cgo CFLAGS: -I/usr/local/include
 #include <stdlib.h>
 #include <oniguruma.h>
 #include "chelper.h"
@@ -275,6 +273,7 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) findSubmatchIndex(b []byte) (captures []strRange) {
+  fmt.Printf("findSubmatchIndex %q %q\n", string(b), re)
   err := re.find(b, len(b), 0, func(caps []strRange) {
     captures = caps
     fmt.Printf("caps: %v\n", caps)
@@ -311,15 +310,17 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
   if captures == nil {
     return nil
   }
+  fmt.Printf("findSubmatchIndex got captures = %v\n", captures)
   length := len(captures)
   results := make([][]byte, 0, length)
-  for i:= 0; i < length; i +=2 {
+  for i:= 0; i < length; i ++ {
     cap := captures[i]
     results = append(results, b[cap[0]:cap[1]])
   }
   if len(results) == 0 {
     return nil
   }
+  fmt.Printf("findSubmatchIndex got results = %v\n", results)
   return results
 }
 
@@ -331,7 +332,7 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
   }
   length := len(captures)
   results := make([]string, 0, length)
-  for i:= 0; i < length; i +=2 {
+  for i:= 0; i < length; i ++ {
     cap := captures[i]
     results = append(results, string(b[cap[0]:cap[1]]))
   }
@@ -557,7 +558,7 @@ func fromReader(r io.RuneReader) []byte {
       break
     }
   }
-  return b
+  return b[:offset]
 }
 
 func (re *Regexp) FindReaderIndex(r io.RuneReader) []int {

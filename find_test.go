@@ -63,7 +63,7 @@ var findTests = []FindTest{
 	{`[\a\b\f\n\r\t\v]+`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
   */
 	//{`a*(|(b))c*`, "aacc", build(4, 0, 4, 2, 2, 2, 2, 2, 2)},
-	{`(.*).*`, "ab", build(1, 0, 2, 0, 2)},
+	{`(.*).*`, "ab", build(2, 0, 2, 0, 2, 2, 2, 2, 2)},
 	{`[.]`, ".", build(1, 0, 1)},
 	{`/$`, "/abc/", build(1, 4, 5)},
 	{`/$`, "/abc", nil},
@@ -288,7 +288,7 @@ func TestFindAllStringIndex(t *testing.T) {
 
 func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte, t *testing.T) {
 	if len(submatches) != len(result)*2 {
-		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
+		t.Errorf("match %d: expected %d submatches; got %d: %s %v %v", n, len(submatches)/2, len(result), test, submatches, result)
 		return
 	}
 	for k := 0; k < len(submatches); k += 2 {
@@ -456,6 +456,7 @@ func testFindAllSubmatchIndex(test *FindTest, result [][]int, t *testing.T) {
 		fmt.Printf("test.matches %v result %v\n", test.matches, result)
 		t.Fatalf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
 	case test.matches != nil && result != nil:
+    fmt.Printf("test.matches %v result %v\n", test.matches, result)
 		for k, match := range test.matches {
 			testSubmatchIndices(test, k, match, result[k], t)
 		}
@@ -464,13 +465,15 @@ func testFindAllSubmatchIndex(test *FindTest, result [][]int, t *testing.T) {
 
 func TestFindAllSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindSubmatchIndex([]byte(test.text), -1), t)
+		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllSubmatchIndex([]byte(test.text), -1), t)
 	}
+  fmt.Printf("done TestFindAllSubmatchIndex\n")
 }
 
 func TestFindAllStringSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
 		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
 	}
+  fmt.Printf("done TestFindAllStringSubmatchIndex\n")
 }
 
