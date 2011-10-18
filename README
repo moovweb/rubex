@@ -1,18 +1,19 @@
-you need to install oniguruma-5.9.2 with PREFIX=/usr/local
-you also need go-gb
+You need to install oniguruma-5.9.2 with PREFIX=/usr/local
 
-to build the package
+You also need go-gb
+
+To build the package
 
    gb -b
 
-to install the package
+To install the package
 
    gb -i
 
-to run tests
+To run tests
 
    gb -t
 
-to clean up 
+To clean up 
 
    gb -c -m
