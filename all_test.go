@@ -5,11 +5,9 @@
 package rubex
 
 import (
-	"os"
-	"strings"
-	"testing"
-  "regexp"
-  "fmt"
+    "os"
+    "strings"
+    "testing"
 )
 
 var good_re = []string{
@@ -26,7 +24,7 @@ var good_re = []string{
 	`[a-z]`,
 	`[a-abc-c\-\]\[]`,
 	`[a-z]+`,
-	//`[]`,
+	//`[]`, //this is not considered as good by ruby/javascript regex
 	`[abc]`,
 	`[^1234]`,
 	`[^\n]`,
@@ -45,7 +43,7 @@ var bad_re = []stringError{
 	{`(abc`, os.NewError("end pattern with unmatched parenthesis")},
 	{`abc)`, os.NewError("unmatched close parenthesis")},
 	{`x[a-z`, os.NewError("premature end of char-class")},
-  //{`abc]`, Err},
+    //{`abc]`, Err}, //this is not considered as bad by ruby/javascript regex; nor are the following commented out regex patterns
 	{`abc[`, os.NewError("premature end of char-class")},
 	{`[z-a]`, os.NewError("empty range in char class")},
 	{`abc\`, os.NewError("end pattern at escape")},
@@ -71,7 +69,6 @@ func TestGoodCompile(t *testing.T) {
 
 func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
-    fmt.Printf("%v\n", bad_re[i].err)
 		compileTest(t, bad_re[i].re, bad_re[i].err)
 	}
 }
@@ -137,8 +134,8 @@ var replaceTests = []ReplaceTest{
 
 	// Multibyte characters -- verify that we don't try to match in the middle
 	// of a character.
-	//{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
-	//{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
+	{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
+	{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
 
 	// Start and end of a string.
 	{"^[a-c]*", "x", "abcdabc", "xdabc"},
@@ -189,16 +186,14 @@ type ReplaceFuncTest struct {
 var replaceFuncTests = []ReplaceFuncTest{
 	{"[a-c]", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxayxbyxcydef"},
 	{"[a-c]+", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxabcydef"},
-	{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
+	{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcyxydxyexyfxy"},
 }
 
 func TestReplaceAll(t *testing.T) {
-	for _, tc := range replaceTests[12:13] {
+	for _, tc := range replaceTests {
 		re, err := Compile(tc.pattern)
     
-    fmt.Printf("pattern %q input %q replacement %q expected %q\n", tc.pattern, tc.input, tc.replacement, tc.output)
 		if err != nil {
-      fmt.Printf("pattern in replaceAll: %q; input %q; error: %v\n", tc.pattern, tc.input, err)
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
 			continue
 		}
@@ -206,10 +201,6 @@ func TestReplaceAll(t *testing.T) {
 		actual := re.ReplaceAllString(tc.input, tc.replacement)
     
 		if actual != tc.output {
-      fmt.Printf("actual = %q expected %q eqal %v\n", actual, tc.output, actual == tc.output)
-      fmt.Printf("pattern in replaceAll: %q; input %q; error: %v\n", tc.pattern, tc.input, err)
-    //fmt.Printf("pattern in replaceAll: actual %q, expected output: %v\n", actual, tc.output)
-    //fmt.Printf("pattern in replaceAll: string: %q, replacement %q\n", tc.input, tc.replacement) 
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
@@ -218,20 +209,14 @@ func TestReplaceAll(t *testing.T) {
      
 		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
 		if actual != tc.output {
-
-      fmt.Printf("pattern in replaceAll: %q; input %q; error: %v\n", tc.pattern, tc.input, err)
-    fmt.Printf("pattern in replaceAll: actual %q, expected output: %v\n", actual, tc.output)
-    fmt.Printf("pattern in replaceAll: string: %q, replacement %q\n", tc.input, tc.replacement) 
-
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
     
 	}
-  fmt.Printf("TestReplaceAll done\n")
 }
 
-/*
+
 func TestReplaceAllFunc(t *testing.T) {
 	for _, tc := range replaceFuncTests {
 		re, err := Compile(tc.pattern)
@@ -252,7 +237,7 @@ func TestReplaceAllFunc(t *testing.T) {
 		}
 	}
 }
-*/
+
 type MetaTest struct {
 	pattern, output, literal string
 	isLiteral                bool
@@ -266,8 +251,10 @@ var metaTests = []MetaTest{
 	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`, `!@#`, false},
 }
 
+/*
+ * QuoteMeta is not supported by rubex
+
 func TestQuoteMeta(t *testing.T) {
-  fmt.Printf("TestQuoteMeta\n")
 	for _, tc := range metaTests {
 		// Verify that QuoteMeta returns the expected string.
 		quoted := regexp.QuoteMeta(tc.pattern)
@@ -296,7 +283,12 @@ func TestQuoteMeta(t *testing.T) {
 		}
 	}
 }
+*/
+
 /*
+ * LiteralPrefix is not supported by rubex
+ *
+//LiteralPrefix
 func TestLiteralPrefix(t *testing.T) {
 	for _, tc := range metaTests {
 		// Literal method needs to scan the pattern.
@@ -330,20 +322,16 @@ var numSubexpCases = []numSubexpCase{
 }
 
 func TestNumSubexp(t *testing.T) {
-  fmt.Printf("TestNumSubexp\n")
 	for _, c := range numSubexpCases {
-    fmt.Printf("input: %q\n", c.input)
 		re := MustCompile(c.input)
 		n := re.NumSubexp()
 		if n != c.expected {
 			t.Errorf("NumSubexp for %q returned %d, expected %d", c.input, n, c.expected)
 		}
 	}
-  fmt.Printf("TestNumSubexp done\n")
 }
 
 func BenchmarkLiteral(b *testing.B) {
-  fmt.Printf("BenchmarkLiteral\n")
 	x := strings.Repeat("x", 50) + "y"
 	b.StopTimer()
 	re := MustCompile("y")
@@ -357,7 +345,6 @@ func BenchmarkLiteral(b *testing.B) {
 }
 
 func BenchmarkNotLiteral(b *testing.B) {
-  fmt.Printf("BenchmarkNotLiteral\n")
 	x := strings.Repeat("x", 50) + "y"
 	b.StopTimer()
 	re := MustCompile(".y")
@@ -371,7 +358,6 @@ func BenchmarkNotLiteral(b *testing.B) {
 }
 
 func BenchmarkMatchClass(b *testing.B) {
-  fmt.Printf("BenchmarkMatchClass\n")
 	b.StopTimer()
 	x := strings.Repeat("xxxx", 20) + "w"
 	re := MustCompile("[abcdw]")
@@ -385,7 +371,6 @@ func BenchmarkMatchClass(b *testing.B) {
 }
 
 func BenchmarkMatchClass_InRange(b *testing.B) {
-  fmt.Printf("BenchmarkMatchClass_InRange\n")
 	b.StopTimer()
 	// 'b' is between 'a' and 'c', so the charclass
 	// range checking is no help here.
@@ -401,7 +386,6 @@ func BenchmarkMatchClass_InRange(b *testing.B) {
 }
 
 func BenchmarkReplaceAll(b *testing.B) {
-  fmt.Printf("BenchmarkReplaceAll\n")
 	x := "abcdefghijklmnopqrstuvwxyz"
 	b.StopTimer()
 	re := MustCompile("[cjrw]")
@@ -412,7 +396,6 @@ func BenchmarkReplaceAll(b *testing.B) {
 }
 
 func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
-  fmt.Printf("BenchmarkAnchoredLiteralShortNonMatch\n")
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
 	re := MustCompile("^zbc(d|e)")
@@ -423,7 +406,6 @@ func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
 }
 
 func BenchmarkAnchoredLiteralLongNonMatch(b *testing.B) {
-  fmt.Printf("BenchmarkAnchoredLiteralLongNonMatch\n")
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
 	for i := 0; i < 15; i++ {
@@ -437,7 +419,6 @@ func BenchmarkAnchoredLiteralLongNonMatch(b *testing.B) {
 }
 
 func BenchmarkAnchoredShortMatch(b *testing.B) {
-  fmt.Printf("BenchmarkAnchoredShortMatch\n")
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
 	re := MustCompile("^.bc(d|e)")
@@ -448,7 +429,6 @@ func BenchmarkAnchoredShortMatch(b *testing.B) {
 }
 
 func BenchmarkAnchoredLongMatch(b *testing.B) {
-  fmt.Printf("BenchmarkAnchoredLongMatch\n")
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
 	for i := 0; i < 15; i++ {
@@ -459,12 +439,4 @@ func BenchmarkAnchoredLongMatch(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		re.Match(x)
 	}
-}
-
-func MatchString(pattern string, s string) (matched bool, error os.Error) {
-  re, err := Compile(pattern)
-  if err != nil {
-    return false, err
-  }
-  return re.MatchString(s), nil
 }

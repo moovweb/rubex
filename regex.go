@@ -127,11 +127,8 @@ func (re *Regexp) processMatch() (captures []strRange) {
       captures = append(captures, sr)
     }
     
-    fmt.Printf("in processMatch sr = %v num = %d\n", sr, num)
-    fmt.Printf("in processMatch captures = %v\n", captures)
   }
   //matchData.captures = append(matchData.captures, captures)
-  fmt.Printf("in processMatch captures = %v\n", captures)
   return
 }
 
@@ -144,7 +141,6 @@ func (re *Regexp) find(b []byte, n int, offset int, deliver func([]strRange)) (e
   if pos >= 0 {
     err = nil
     captures := re.processMatch()
-    fmt.Printf("in find captures = %v\n", captures)
     deliver(captures)
   } else {
     err = os.NewError(C.GoString(re.errorBuf))
@@ -163,7 +159,6 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
     err = re.find(b, n, offset, func(kaps []strRange) {
       captures = kaps
     })
-    fmt.Printf("captures = %v err = %v\n", captures, err)
     if err == nil {
       hasMatched = true
       //we need to adjust the captures' indexes by offset because the search starts at offset
@@ -175,9 +170,13 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
       offset = match[1]
       //if match[0] == match[1], it means the current match does not advance the search. we need to exit the loop to avoid getting stuck here.
       if match[0] == match[1] {
-        offset += 1 //TODO handle encoding
+        if offset < n {
+            _, width := utf8.DecodeRune(b[offset:])
+            offset += width
+        } else {
+            offset += 1
+        }
       }
-      fmt.Printf("offset = %d\n", offset)
     } else {
       break
     }
@@ -186,11 +185,9 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
   if hasMatched {
     err = nil
   }
-  if err != nil {
-    fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
-  }
-  
-  fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
+  //if err != nil {
+    //fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
+  //}
   return
 }
 
@@ -273,12 +270,9 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) findSubmatchIndex(b []byte) (captures []strRange) {
-  fmt.Printf("findSubmatchIndex %q %q\n", string(b), re)
   err := re.find(b, len(b), 0, func(caps []strRange) {
     captures = caps
-    fmt.Printf("caps: %v\n", caps)
   })
-  fmt.Printf("captures: %v\n", captures)
   if err != nil {
     captures = nil
   }
@@ -310,7 +304,6 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
   if captures == nil {
     return nil
   }
-  fmt.Printf("findSubmatchIndex got captures = %v\n", captures)
   length := len(captures)
   results := make([][]byte, 0, length)
   for i:= 0; i < length; i ++ {
@@ -320,7 +313,6 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
   if len(results) == 0 {
     return nil
   }
-  fmt.Printf("findSubmatchIndex got results = %v\n", results)
   return results
 }
 
@@ -350,11 +342,9 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 func (re *Regexp) findAllSubmatchIndex(b []byte, n int) [][]strRange {
   allCaptures := make([][]strRange, 0, numMatchStartSize) 
   re.findAll(b, n, func(caps []strRange) {
-    fmt.Printf("captures: %v\n", caps)
     allCaptures = append(allCaptures, caps)
   })
 
-  fmt.Printf("allCaptures: %v\n", allCaptures)
   if len(allCaptures) == 0 { 
     return nil
   }
@@ -460,13 +450,11 @@ func fillCapturedValues(repl []byte, capturedBytes [][]byte) []byte {
       inEscapeMode = !inEscapeMode
     }
   }
-  //fmt.Printf("newRepl: %v\n", string(newRepl))
   return newRepl
 }
 
 func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, [][]byte) []byte) []byte {
   allCaptures := re.findAllSubmatchIndex(src, len(src))
-  fmt.Printf("allCaptures: %v\n", allCaptures)
   if allCaptures == nil {
     return src
   }
@@ -530,7 +518,6 @@ func (re *Regexp) String() string {
 }
 
 func grow_buffer(b []byte, offset int, n int) []byte {
-  fmt.Printf("offset = %d cap %d\n", offset, cap(b))
   if offset+n > cap(b) {
     buf := make([]byte, 2*cap(b)+n)
     copy(buf, b[:offset])
@@ -545,9 +532,7 @@ func fromReader(r io.RuneReader) []byte {
   var err os.Error = nil
   for ;err == nil; {
     rune, runeWidth, err := r.ReadRune()
-    fmt.Printf("runeWidth = %d err = %v\n", runeWidth, err)
     if err == nil {
-      fmt.Printf("runeWidth = %d\n", runeWidth)
       b = grow_buffer(b, offset, runeWidth)
       writeWidth := utf8.EncodeRune(b[offset:], rune)
       if runeWidth != writeWidth {
@@ -579,4 +564,12 @@ func (re *Regexp) MatchReader(r io.RuneReader) bool {
 func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
   //no easy way to implement this
   return "", false
+}
+
+func MatchString(pattern string, s string) (matched bool, error os.Error) {
+  re, err := Compile(pattern)
+  if err != nil {
+    return false, err
+  }
+  return re.MatchString(s), nil
 }
