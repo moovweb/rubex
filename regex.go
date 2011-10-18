@@ -484,20 +484,14 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, [][]byte) [
 			prevEnd = prevMatch[1]
 		}
 		if match[0] > prevEnd {
-			for _, c := range src[prevEnd:match[0]] {
-				dest = append(dest, c)
-			}
+            dest = append(dest, src[prevEnd:match[0]]...)
 		}
-		for _, c := range newRepl {
-			dest = append(dest, c)
-		}
+        dest = append(dest, newRepl...)
 	}
 	lastEnd := allCaptures[len(allCaptures)-1][0][1]
 	if lastEnd < len(src) {
 		if lastEnd < len(src) {
-			for _, c := range src[lastEnd:] {
-				dest = append(dest, c)
-			}
+            dest = append(dest, src[lastEnd:]...)
 		}
 	}
 	return dest

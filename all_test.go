@@ -394,6 +394,18 @@ func BenchmarkReplaceAll(b *testing.B) {
 	}
 }
 
+func BenchmarkFindAllStringSubmatchIndex(b *testing.B) {
+	x := "abcdefghijklmnopqrstuvwxyz"
+	b.StopTimer()
+	re := MustCompile("[cjrw]")
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		re.FindAllStringSubmatchIndex(x, 0)
+	}
+}
+
+
+
 func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
