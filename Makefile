@@ -19,3 +19,6 @@ CGO_OFILES=\
 CLEANFILES+=
 
 include $(GOROOT)/src/Make.pkg
+
+%.o: %.c
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC $(CFLAGS) -o $@ -c $^

@@ -5,9 +5,9 @@
 package rubex
 
 import (
-    "os"
-    "strings"
-    "testing"
+	"os"
+	"strings"
+	"testing"
 )
 
 var good_re = []string{
@@ -43,7 +43,7 @@ var bad_re = []stringError{
 	{`(abc`, os.NewError("end pattern with unmatched parenthesis")},
 	{`abc)`, os.NewError("unmatched close parenthesis")},
 	{`x[a-z`, os.NewError("premature end of char-class")},
-    //{`abc]`, Err}, //this is not considered as bad by ruby/javascript regex; nor are the following commented out regex patterns
+	//{`abc]`, Err}, //this is not considered as bad by ruby/javascript regex; nor are the following commented out regex patterns
 	{`abc[`, os.NewError("premature end of char-class")},
 	{`[z-a]`, os.NewError("empty range in char class")},
 	{`abc\`, os.NewError("end pattern at escape")},
@@ -192,30 +192,29 @@ var replaceFuncTests = []ReplaceFuncTest{
 func TestReplaceAll(t *testing.T) {
 	for _, tc := range replaceTests {
 		re, err := Compile(tc.pattern)
-    
+
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
 			continue
 		}
-    
+
 		actual := re.ReplaceAllString(tc.input, tc.replacement)
-    
+
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
-    
+
 		// now try bytes
-     
+
 		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
-    
+
 	}
 }
-
 
 func TestReplaceAllFunc(t *testing.T) {
 	for _, tc := range replaceFuncTests {

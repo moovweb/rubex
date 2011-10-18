@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef BENCHMARK_CHELP
+#include <sys/time.h> 
+#endif
 #include "chelper.h"
 
 int NewOnigRegex( char *pattern, int pattern_length, int option,
@@ -35,17 +38,25 @@ int NewOnigRegex( char *pattern, int pattern_length, int option,
 }
 
 int SearchOnigRegex( void *str, int str_length, int offset, int option,
-                  OnigRegex regex, OnigRegion *region, OnigEncoding encoding, OnigErrorInfo *error_info, char *error_buffer) {
+                  OnigRegex regex, OnigRegion *region, OnigErrorInfo *error_info, char *error_buffer) {
     int ret = ONIG_MISMATCH;
     int error_msg_len = 0;
+#ifdef BENCHMARK_CHELP
+    struct timeval tim1, tim2;
+    long t;
+#endif
 
     OnigUChar *str_start = (OnigUChar *) str;
     OnigUChar *str_end = (OnigUChar *) (str_start + str_length);
     OnigUChar *search_start = (OnigUChar *)(str_start + offset);
     OnigUChar *search_end = str_end;
 
+#ifdef BENCHMARK_CHELP
+    gettimeofday(&tim1, NULL);
+#endif
+
     ret = onig_search(regex, str_start, str_end, search_start, search_end, region, option);
-    if (ret < 0) {
+    if (ret < 0 && error_buffer != NULL) {
         error_msg_len = onig_error_code_to_str((unsigned char*)(error_buffer), ret, error_info);
         if (error_msg_len >= ONIG_MAX_ERROR_MESSAGE_LEN) {
             error_msg_len = ONIG_MAX_ERROR_MESSAGE_LEN - 1;
@@ -60,6 +71,38 @@ int SearchOnigRegex( void *str, int str_length, int offset, int option,
             fprintf(stderr, "%d: (%d-%d)\n", i, region->beg[i], region->end[i]);
         }
     }*/
+
+#ifdef BENCHMARK_CHELP
+    gettimeofday(&tim2, NULL);
+    t = (tim2.tv_sec - tim1.tv_sec) * 1000000 + tim2.tv_usec - tim1.tv_usec;
+    printf("%ld microseconds elapsed\n", t);
+#endif
+
+    return ret;
+}
+
+int MatchOnigRegex( void *str, int str_length, int offset, int option,
+                  OnigRegex regex, OnigRegion *region) {
+    int ret = ONIG_MISMATCH;
+    int error_msg_len = 0;
+#ifdef BENCHMARK_CHELP
+    struct timeval tim1, tim2;
+    long t;
+#endif
+
+    OnigUChar *str_start = (OnigUChar *) str;
+    OnigUChar *str_end = (OnigUChar *) (str_start + str_length);
+    OnigUChar *search_start = (OnigUChar *)(str_start + offset);
+
+#ifdef BENCHMARK_CHELP
+    gettimeofday(&tim1, NULL);
+#endif
+    ret = onig_match(regex, str_start, str_end, search_start, region, option);
+#ifdef BENCHMARK_CHELP
+    gettimeofday(&tim2, NULL);
+    t = (tim2.tv_sec - tim1.tv_sec) * 1000000 + tim2.tv_usec - tim1.tv_usec;
+    printf("%ld microseconds elapsed\n", t);
+#endif
     return ret;
 }
 
