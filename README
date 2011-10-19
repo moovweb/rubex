@@ -1,8 +1,14 @@
-You need to install oniguruma-5.9.2 with PREFIX=/usr/local
+Rubex
 
-You also need go-gb
+by Zhigang Chen
 
-To build the package
+A simpe library for using the Oniguruma regex library written in C, which provides various regular expression syntaxes used by popular programming languages or tools, like Ruby, Java, Perl, grep, and emacs. In fact, Ruby 1.9 adapts the Oniguruma source code to implement the regex module.
+
+The go library uses Oniguruma 5.9.2, the latest release as of now. It uses the regex syntax of Ruby. After Oniguruma is installed, run "onig-config --cflags" and "onig-config --libs". The resulting output should be set to CFLAGS and LDFLAGS in cgoflags.go.
+
+Also it uses a build tool called "gb", available at "http://code.google.com/p/go-gb/".
+
+So, to build the project, just go to the root directory and type
 
    gb -b
 
