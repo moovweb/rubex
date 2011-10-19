@@ -11,7 +11,6 @@ CGOFILES=\
 
 GOFILES=\
   constants.go\
-  helper.go
 
 CGO_OFILES=\
   chelper.o\

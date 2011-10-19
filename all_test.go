@@ -404,8 +404,6 @@ func BenchmarkFindAllStringSubmatchIndex(b *testing.B) {
 	}
 }
 
-
-
 func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
 	b.StopTimer()
 	x := []byte("abcdefghijklmnopqrstuvwxyz")
