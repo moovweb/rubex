@@ -1,12 +1,11 @@
 include $(GOROOT)/src/Make.inc
 
-LDFLAGS=-L/usr/local/lib -lonig
-CFLAGS=-I/usr/local/include
+LDFLAGS=$(shell pkg-config oniguruma --libs)
+CFLAGS=$(shell pkg-config oniguruma --cflags)
 
 TARG=rubex
 
 CGOFILES=\
-  cgoflags.go\
   regex.go\
 
 GOFILES=\
