@@ -1,0 +1,3 @@
+[submodule "oniguruma"]
+	path = oniguruma
+	url = git@github.com:zhigangc/oniguruma.git
