@@ -4,9 +4,18 @@ by Zhigang Chen
 
 A simpe library for using the Oniguruma regex library written in C, which provides various regular expression syntaxes used by popular programming languages or tools, like Ruby, Java, Perl, grep, and emacs. In fact, Ruby 1.9 adapts the Oniguruma source code to implement the regex module.
 
-The go library uses Oniguruma 5.9.2, the latest release as of now. I patch it so that pkg-config can see it. If you are on Mac and uses Home Brew, you can install it by the formula here, https://github.com/zhigangc/brew_formulas/blob/master/oniguruma.rb. Otherwise, you can clone the source and build it from her, https://github.com/zhigangc/oniguruma.
+The go library uses Oniguruma 5.9.2, the latest release as of now. I patch it so that pkg-config can see it. It is included as a git submodule. After you clone rubex, do "git submodule init; git submodule update". That should pull the patched oniguruma source. 
+
+Then you run
+
+   make onig
+
+At the last step, you are asked to input your sudo password to install the library to proper paths.
+
+Or, if you want to install it yourself, on Mac and using Home Brew, you can install it by the formula here, https://github.com/zhigangc/brew_formulas/blob/master/oniguruma.rb. Otherwise, you can clone the source and build it from her, https://github.com/zhigangc/oniguruma.
 
 Also it uses a build tool called "gb", available at "http://code.google.com/p/go-gb/".
+
 
 So, to build the project, just go to the root directory and type
 
