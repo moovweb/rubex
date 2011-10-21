@@ -2,7 +2,9 @@ Rubex
 
 by Zhigang Chen
 
-A simple regular expression library that provides various regular expression syntaxes used by popular programming languages or tools, like Ruby, Java, Perl, grep, and emacs. It implements all the public functions of Go's Regexp package, except LiteralPrefix. QuoteMeta function is copied from the Regexp package just to avoid referencing/linking the entire Regexp.
+A simple regular expression library that can support various regular expression syntaxes used by popular programming languages or tools, like Ruby, Java, Perl, grep, and emacs. It implements all the public functions of Go's Regexp package, except LiteralPrefix. QuoteMeta function is copied from the Regexp package just to avoid referencing/linking the entire Regexp. It supports the Ruby regex syntax. Other languages' regex syntax can be supported.
+
+
 
 The library calls the Oniguruma regex library (5.9.2, the latest release as of now) for regex pattern searching. All replacement code is done in Go.
 
