@@ -10,6 +10,7 @@ CGOFILES=\
 
 GOFILES=\
   constants.go\
+  quotemeta.go\
 
 CGO_OFILES=\
   chelper.o\

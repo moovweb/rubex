@@ -250,13 +250,10 @@ var metaTests = []MetaTest{
 	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`, `!@#`, false},
 }
 
-/*
- * QuoteMeta is not supported by rubex
-
 func TestQuoteMeta(t *testing.T) {
 	for _, tc := range metaTests {
 		// Verify that QuoteMeta returns the expected string.
-		quoted := regexp.QuoteMeta(tc.pattern)
+		quoted := QuoteMeta(tc.pattern)
 		if quoted != tc.output {
 			t.Errorf("QuoteMeta(`%s`) = `%s`; want `%s`",
 				tc.pattern, quoted, tc.output)
@@ -282,7 +279,6 @@ func TestQuoteMeta(t *testing.T) {
 		}
 	}
 }
-*/
 
 /*
  * LiteralPrefix is not supported by rubex
