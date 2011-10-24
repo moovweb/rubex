@@ -2,11 +2,11 @@ Rubex
 
 by Zhigang Chen
 
-A simple regular expression library that supports Ruby's regex syntax. It implements all the public functions of Go's Regexp package, except LiteralPrefix. QuoteMeta function is copied from the Regexp package just to avoid referencing/linking the entire Regexp.
+A simple regular expression library that supports Ruby's regex syntax. It implements all the public functions of Go's Regexp package, except LiteralPrefix. By the benchmark tests in Regexp, the library is 40% to 10X faster than Regexp on all but one test.
 
 The library calls the Oniguruma regex library (5.9.2, the latest release as of now) for regex pattern searching. All replacement code is done in Go. This library can be easily adapted to support the regex syntax used by other programming languages or tools, like Java, Perl, grep, and emacs.
 
-I patched Oniguruma so that pkg-config can see it and therefore Cgo can get the CFLAGS and LDFLAGS. It is included as a git submodule. After you clone rubex, do "git submodule init; git submodule update". That should pull the patched oniguruma source.
+Oniguruma is patched, so pkg-config can see it and therefore Cgo can get the CFLAGS and LDFLAGS. It is included as a git submodule. After you clone rubex, do "git submodule init; git submodule update". That should pull the patched oniguruma source.
 
 Then you run
 

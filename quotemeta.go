@@ -3,6 +3,8 @@
 
 // Package regexp implements a simple regular expression library.
 
+// QuoteMeta func is copied here to avoid linking the entire Regexp library.
+
 package rubex
 
 func special(c int) bool {
