@@ -1,30 +1,24 @@
 include $(GOROOT)/src/Make.inc
 
-LDFLAGS=$(shell pkg-config oniguruma --libs)
-CFLAGS=$(shell pkg-config oniguruma --cflags)
+ONIG_CONFIG=$(shell which onig-config)
 
-TARG=rubex
+prereq:
+	@test -x "$(ONIG_CONFIG)" || (echo "Can't find onig-config in your path."; false)
 
-CGOFILES=\
-  regex.go\
+oniguruma/Makefile:
+	git submodule update --init
 
-GOFILES=\
-  constants.go\
-  quotemeta.go\
+onig_install: oniguruma/Makefile
+	cd oniguruma; ./configure --prefix=/usr/local; make install
 
-CGO_OFILES=\
-  chelper.o\
+rubex_install: lib/Makefile
+	cd lib; make install
 
-CLEANFILES+=
+install: prereq onig_install rubex_install
 
-include $(GOROOT)/src/Make.pkg
+test:
+	cd lib; make test
 
-%.o: %.c
-	gcc $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC $(CFLAGS) -o $@ -c $^
-
-onig:
-	cd ./oniguruma && ./configure && make && sudo make install
-
-onig-clean:
-	cd ./oniguruma && make distclean
-
+clean:
+	cd lib; make clean
+	cd oniguruma; make clean

@@ -1,7 +1,6 @@
 package rubex
 
 /*
-#cgo pkg-config: oniguruma
 #include <stdlib.h>
 #include <oniguruma.h>
 #include "chelper.h"

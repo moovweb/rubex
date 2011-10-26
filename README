@@ -1,20 +1,18 @@
 Rubex
 
-by Zhigang Chen
+by Zhigang Chen (zhigang.chen@moovweb.com or zhigangc@gmail.com)
 
 A simple regular expression library that supports Ruby's regex syntax. It implements all the public functions of Go's Regexp package, except LiteralPrefix. By the benchmark tests in Regexp, the library is 40% to 10X faster than Regexp on all but one test.
 
 The library calls the Oniguruma regex library (5.9.2, the latest release as of now) for regex pattern searching. All replacement code is done in Go. This library can be easily adapted to support the regex syntax used by other programming languages or tools, like Java, Perl, grep, and emacs.
 
-Oniguruma is patched, so pkg-config can see it and therefore Cgo can get the CFLAGS and LDFLAGS. It is included as a git submodule. After you clone rubex, do "git submodule init; git submodule update". That should pull the patched oniguruma source.
+To install everything, just run
 
-Then you run
+   make install
 
-   make onig
+To run tests, do
 
-At the last step, you are asked to input your sudo password to install the library to proper paths.
-
-Or, if you want to install it yourself, on Mac and using Home Brew, you can install it by the formula here, https://github.com/zhigangc/brew_formulas/blob/master/oniguruma.rb. Otherwise, you can clone the source and build it from her, https://github.com/zhigangc/oniguruma.
+   make test
 
 Also it uses a build tool called "gb", available at "http://code.google.com/p/go-gb/".
 
