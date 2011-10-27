@@ -8,31 +8,29 @@
 package rubex
 
 func special(c int) bool {
-    for _, r := range `\.+*?()|[]^$` {
-        if c == r {
-            return true
-        }
-    }
-    return false
+	for _, r := range `\.+*?()|[]^$` {
+		if c == r {
+			return true
+		}
+	}
+	return false
 }
-
 
 // QuoteMeta returns a string that quotes all regular expression metacharacters
 // inside the argument text; the returned string is a regular expression matching
 // the literal text.  For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
 func QuoteMeta(s string) string {
-    b := make([]byte, 2*len(s))
+	b := make([]byte, 2*len(s))
 
-    // A byte loop is correct because all metacharacters are ASCII.
-    j := 0
-    for i := 0; i < len(s); i++ {
-        if special(int(s[i])) {
-            b[j] = '\\'
-            j++
-        }
-        b[j] = s[i]
-        j++
-    }
-    return string(b[0:j])
+	// A byte loop is correct because all metacharacters are ASCII.
+	j := 0
+	for i := 0; i < len(s); i++ {
+		if special(int(s[i])) {
+			b[j] = '\\'
+			j++
+		}
+		b[j] = s[i]
+		j++
+	}
+	return string(b[0:j])
 }
-

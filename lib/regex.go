@@ -13,12 +13,15 @@ import (
 	"os"
 	"io"
 	"utf8"
+	"sync"
 )
 
 type strRange []int
 
 const numMatchStartSize = 4
 const numReadBufferStartSize = 256
+
+var mutex sync.Mutex
 
 type MatchData struct {
 	//captures[i-1] is the i-th match -- there could be multiple non-overlapping matches for a given pattern
@@ -41,6 +44,8 @@ type Regexp struct {
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 	re = &Regexp{pattern: pattern}
+	mutex.Lock()
+	defer mutex.Unlock()
 	error_code := C.NewOnigRegex(C.CString(pattern), C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
 		err = os.NewError(C.GoString(re.errorBuf))
@@ -66,6 +71,7 @@ func MustCompile(str string) *Regexp {
 }
 
 func (re *Regexp) Free() {
+	mutex.Lock()
 	if re.regex != nil {
 		C.onig_free(re.regex)
 		re.regex = nil
@@ -73,6 +79,7 @@ func (re *Regexp) Free() {
 	if re.region != nil {
 		C.onig_region_free(re.region, 1)
 	}
+	mutex.Unlock()
 	if re.errorInfo != nil {
 		C.free(unsafe.Pointer(re.errorInfo))
 		re.errorInfo = nil
