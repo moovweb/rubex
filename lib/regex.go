@@ -456,9 +456,7 @@ func fillCapturedValues(repl []byte, capturedBytes [][]byte) []byte {
 				panic(fmt.Sprintf("invalid capture number: %d", capNum))
 			}
 			capBytes := capturedBytes[capNum]
-			for _, c := range capBytes {
-				newRepl = append(newRepl, c)
-			}
+            newRepl = append(newRepl, capBytes...)
 		} else if inEscapeMode {
 			newRepl = append(newRepl, '\\')
 			newRepl = append(newRepl, ch)
@@ -585,4 +583,24 @@ func MatchString(pattern string, s string) (matched bool, error os.Error) {
 		return false, err
 	}
 	return re.MatchString(s), nil
+}
+
+func (re *Regexp) Gsub(src, repl string) string {
+    srcBytes := ([]byte)(src)
+    replBytes := ([]byte)(repl)
+    replaced := re.replaceAll(srcBytes, replBytes, fillCapturedValues)
+    return string(replaced)
+}
+
+func (re *Regexp) GsubFunc(src string, replFunc func([]string) string) string {
+    srcBytes := ([]byte)(src)
+    replaced := re.replaceAll(srcBytes, nil, func(_ []byte, capturedBytes [][]byte) []byte {
+        numCaptures := len(capturedBytes)
+        capturedStrings := make([]string, numCaptures)
+        for index, capBytes := range(capturedBytes) {
+            capturedStrings[index] = string(capBytes)
+        } 
+        return ([]byte)(replFunc(capturedStrings))
+    })
+    return string(replaced)
 }

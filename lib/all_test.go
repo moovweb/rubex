@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+    "fmt"
 )
 
 var good_re = []string{
@@ -235,6 +236,83 @@ func TestReplaceAllFunc(t *testing.T) {
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
 	}
+}
+
+/*
+* "hallo".gsub(/h(.*)llo/, "e")
+*/
+func TestGsub(t *testing.T) {
+    input := "hallo"
+    pattern := "h(.*)llo"
+    expected := "e"
+    re, err := Compile(pattern)
+    if err != nil {
+        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+        return
+    }
+    actual := re.Gsub(input, "e")
+    if actual != expected {
+        t.Errorf("expected %q, actual %q\n", expected, actual)
+    }
+}
+
+
+
+/*
+* "hallo".gsub(/h(.*)llo/) { |match|
+*    "e"
+* }
+*/
+func TestGsubFunc1(t *testing.T) {
+    input := "hallo"
+    pattern := "h(.*)llo"
+    expected := "e"
+    re, err := Compile(pattern)
+    if err != nil {
+        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+        return
+    }
+    actual := re.GsubFunc(input, func(captures []string) string {
+        return "e"
+    })
+    if actual != expected {
+        t.Errorf("expected %q, actual %q\n", expected, actual)
+    }
+}
+
+/*
+* @env = {}
+* "hallo".gsub(/h(.*)llo/) { |match|
+*   $~.captures.each_with_index do |arg, index|
+*     @env["#{index + 1}"] = arg
+*     "abcd".gsub(/(d)/) do
+*       env["1"]
+*     end
+*   end
+* }
+*/
+func TestGsubFunc2(t *testing.T) {
+    input := "hallo"
+    pattern := "h(.*)llo"
+    expected := "abca"
+    env := make(map[string]string)
+    re, err := Compile(pattern)
+    if err != nil {
+        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+        return
+    }
+    actual := re.GsubFunc(input, func(captures []string) string {
+        for index, capture := range captures {
+            env[fmt.Sprintf("%d", index)] = capture
+        }
+        re1 := MustCompile("(d)")
+        return re1.GsubFunc("abcd", func(captures2 []string) string {
+            return env["1"]
+        })
+    })
+    if actual != expected {
+        t.Errorf("expected %q, actual %q\n", expected, actual)
+    }
 }
 
 type MetaTest struct {
