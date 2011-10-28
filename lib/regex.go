@@ -466,6 +466,23 @@ func (re *Regexp) NumSubexp() int {
 	return (int)(C.onig_number_of_captures(re.regex))
 }
 
+func (re *Regexp) getNamedCapture(name []byte, capturedBytes [][]byte) []byte {
+    nameStr := string(name)
+    capNum := re.groupNameToId(nameStr)
+    if capNum < 0 || capNum >= len(capturedBytes) {
+        panic(fmt.Sprintf("capture group name (%q) has error\n", nameStr))
+    }
+    return capturedBytes[capNum]
+}
+
+func (re *Regexp) getNumberedCapture(num int, capturedBytes [][]byte) []byte {
+    //when named capture groups exist, numbered capture groups returns ""
+    if re.namedCaptures == nil && num <= (len(capturedBytes) - 1) && num >= 0 {
+	    return capturedBytes[num]
+    }
+    return ([]byte)("")
+}
+
 func fillCapturedValues(re *Regexp, repl []byte, capturedBytes [][]byte) []byte {
     replLen := len(repl)
 	newRepl := make([]byte, 0, replLen*3)
@@ -477,22 +494,15 @@ func fillCapturedValues(re *Regexp, repl []byte, capturedBytes [][]byte) []byte 
         if inGroupNameMode && ch == byte('<') {
         } else if inGroupNameMode && ch == byte('>') {
             inGroupNameMode = false
-            groupNameStr := string(groupName)
-            groupName = groupName[:0]
-            capNum := re.groupNameToId(groupNameStr)
-            if capNum < 0 {
-                panic(fmt.Sprintf("capture group name (%q) has error\n", groupNameStr))
-            }
-            capBytes := capturedBytes[capNum]
+            capBytes := re.getNamedCapture(groupName, capturedBytes)
             newRepl = append(newRepl, capBytes...)
+            groupName = groupName[:0] //reset the name
         } else if inGroupNameMode {
             groupName = append(groupName, ch)
         } else if inEscapeMode && ch <= byte('9') && byte('1') <= ch {
 			capNum := int(ch - byte('0'))
-			if re.namedCaptures == nil && capNum <= (len(capturedBytes) - 1) {
-			    capBytes := capturedBytes[capNum]
-                newRepl = append(newRepl, capBytes...)
-            }
+            capBytes := re.getNumberedCapture(capNum, capturedBytes)
+            newRepl = append(newRepl, capBytes...)
 		} else if inEscapeMode && ch == byte('k') && (index + 1) < replLen && repl[index + 1] == byte('<') {
             inGroupNameMode = true
             inEscapeMode = false
@@ -632,15 +642,15 @@ func (re *Regexp) Gsub(src, repl string) string {
     return string(replaced)
 }
 
-func (re *Regexp) GsubFunc(src string, replFunc func([]string) string) string {
+func (re *Regexp) GsubFunc(src string, replFunc func(*Regexp, []string) string) string {
     srcBytes := ([]byte)(src)
-    replaced := re.replaceAll(srcBytes, nil, func(_ *Regexp, _ []byte, capturedBytes [][]byte) []byte {
+    replaced := re.replaceAll(srcBytes, nil, func(re *Regexp, _ []byte, capturedBytes [][]byte) []byte {
         numCaptures := len(capturedBytes)
         capturedStrings := make([]string, numCaptures)
         for index, capBytes := range(capturedBytes) {
             capturedStrings[index] = string(capBytes)
         } 
-        return ([]byte)(replFunc(capturedStrings))
+        return ([]byte)(replFunc(re, capturedStrings))
     })
     return string(replaced)
 }

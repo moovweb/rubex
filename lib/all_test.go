@@ -326,7 +326,7 @@ func TestGsubFunc1(t *testing.T) {
         t.Errorf("Unexpected error compiling %q: %v", pattern, err)
         return
     }
-    actual := re.GsubFunc(input, func(captures []string) string {
+    actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
         return "e"
     })
     if actual != expected {
@@ -355,12 +355,12 @@ func TestGsubFunc2(t *testing.T) {
         t.Errorf("Unexpected error compiling %q: %v", pattern, err)
         return
     }
-    actual := re.GsubFunc(input, func(captures []string) string {
+    actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
         for index, capture := range captures {
             env[fmt.Sprintf("%d", index)] = capture
         }
         re1 := MustCompile("(d)")
-        return re1.GsubFunc("abcd", func(captures2 []string) string {
+        return re1.GsubFunc("abcd", func(re1 *Regexp, captures2 []string) string {
             return env["1"]
         })
     })
