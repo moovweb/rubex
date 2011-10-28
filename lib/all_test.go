@@ -241,7 +241,7 @@ func TestReplaceAllFunc(t *testing.T) {
 /*
 * "hallo".gsub(/h(.*)llo/, "e")
 */
-func TestGsub(t *testing.T) {
+func TestGsub1(t *testing.T) {
     input := "hallo"
     pattern := "h(.*)llo"
     expected := "e"
@@ -251,6 +251,60 @@ func TestGsub(t *testing.T) {
         return
     }
     actual := re.Gsub(input, "e")
+    if actual != expected {
+        t.Errorf("expected %q, actual %q\n", expected, actual)
+    }
+}
+
+/*
+* "hallo".gsub(/h(?<foo>.*)llo/, "\\k<foo>")
+*/
+func TestGsubNamedCapture1(t *testing.T) {
+    input := "hallo"
+    pattern := "h(?<foo>.*)llo"
+    expected := "a"
+    re, err := Compile(pattern)
+    if err != nil {
+        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+        return
+    }
+    actual := re.Gsub(input, "\\k<foo>")
+    if actual != expected {
+        t.Errorf("expected %q, actual %q\n", expected, actual)
+    }
+}
+
+/*
+* "hallo".gsub(/h(?<foo>.*)ll(?<bar>.*)/, "\\k<foo>\\k<bar>\\k<foo>")
+*/
+func TestGsubNamedCapture2(t *testing.T) {
+    input := "hallo"
+    pattern := "h(?<foo>.*)ll(?<bar>.*)"
+    expected := "aoa"
+    re, err := Compile(pattern)
+    if err != nil {
+        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+        return
+    }
+    actual := re.Gsub(input, "\\k<foo>\\k<bar>\\k<foo>")
+    if actual != expected {
+        t.Errorf("expected %q, actual %q\n", expected, actual)
+    }
+}
+
+/*
+* "hallo".gsub(/h(?<foo>.*)(l*)(?<bar>.*)/, "\\k<foo>\\k<bar>\\k<foo>\\1")
+*/
+func TestGsubNamedCapture3(t *testing.T) {
+    input := "hallo"
+    pattern := "h(?<foo>.*)(l*)(?<bar>.*)"
+    expected := "alloallo"
+    re, err := Compile(pattern)
+    if err != nil {
+        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+        return
+    }
+    actual := re.Gsub(input, "\\k<foo>\\k<bar>\\k<foo>\\1")
     if actual != expected {
         t.Errorf("expected %q, actual %q\n", expected, actual)
     }
