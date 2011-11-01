@@ -73,6 +73,19 @@ func MustCompile(str string) *Regexp {
 	return regexp
 }
 
+func CompileWithOption(str string, option int) (*Regexp, os.Error) {
+	return NewRegexp(str, option)
+}
+
+func MustCompileWithOption(str string, option int) *Regexp {
+	regexp, error := NewRegexp(str, option)
+	if error != nil {
+		panic("regexp: compiling " + str + ": " + error.String())
+	}
+	return regexp
+}
+
+
 func (re *Regexp) Free() {
 	mutex.Lock()
 	if re.regex != nil {

@@ -392,6 +392,19 @@ func TestPattern2(t *testing.T) {
     }
 }
 
+func TestCompileWithOption(t *testing.T) {
+    re := MustCompileWithOption("a$", ONIG_OPTION_IGNORECASE)
+    if ! re.MatchString("A") {
+        t.Errorf("expect to match\n")
+    }
+    re = MustCompile("a$")
+    if re.MatchString("A") {
+        t.Errorf("expect to mismatch\n")
+    }
+
+}
+
+
 
 type MetaTest struct {
 	pattern, output, literal string
