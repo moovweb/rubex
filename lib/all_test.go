@@ -369,6 +369,17 @@ func TestGsubFunc2(t *testing.T) {
     }
 }
 
+func TestPattern1(t *testing.T) {
+    re := MustCompile(`\$`)
+    if ! re.MatchString("\\$") {
+        t.Errorf("expect to match\n")
+    }
+    re = MustCompile("\\$")
+    if ! re.MatchString("\\$") {
+        t.Errorf("expect to match\n")
+    }
+}
+
 type MetaTest struct {
 	pattern, output, literal string
 	isLiteral                bool
