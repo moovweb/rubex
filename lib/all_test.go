@@ -369,16 +369,29 @@ func TestGsubFunc2(t *testing.T) {
     }
 }
 
+/* how to match $ as itself */
 func TestPattern1(t *testing.T) {
-    re := MustCompile(`\$`)
-    if ! re.MatchString("\\$") {
+    re := MustCompile(`b\$a`)
+    if ! re.MatchString("b$a") {
         t.Errorf("expect to match\n")
     }
-    re = MustCompile("\\$")
-    if ! re.MatchString("\\$") {
-        t.Errorf("expect to match\n")
+    re = MustCompile("b\\$a")
+    if ! re.MatchString("b$a") {
+        t.Errorf("expect to match 2\n")
     }
 }
+
+/* how to use $ as the end of line */
+func TestPattern2(t *testing.T) {
+    re := MustCompile("a$")
+    if ! re.MatchString("a") {
+        t.Errorf("expect to match\n")
+    }
+    if re.MatchString("ab") {
+        t.Errorf("expect to mismatch\n")
+    }
+}
+
 
 type MetaTest struct {
 	pattern, output, literal string
