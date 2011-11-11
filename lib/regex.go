@@ -33,30 +33,30 @@ type MatchData struct {
 }
 
 type Regexp struct {
-	pattern   string
-	regex     C.OnigRegex
-	region    *C.OnigRegion
-	encoding  C.OnigEncoding
-	errorInfo *C.OnigErrorInfo
-	errorBuf  *C.char
-    namedCaptures map[string]int
+	pattern       string
+	regex         C.OnigRegex
+	region        *C.OnigRegion
+	encoding      C.OnigEncoding
+	errorInfo     *C.OnigErrorInfo
+	errorBuf      *C.char
+	namedCaptures map[string]int
 }
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 	re = &Regexp{pattern: pattern}
 	mutex.Lock()
 	defer mutex.Unlock()
-    patternCharPtr := C.CString(pattern)
-    defer C.free(unsafe.Pointer(patternCharPtr))
+	patternCharPtr := C.CString(pattern)
+	defer C.free(unsafe.Pointer(patternCharPtr))
 
 	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
 		err = os.NewError(C.GoString(re.errorBuf))
 	} else {
 		err = nil
-        if int(C.onig_number_of_names(re.regex)) > 0 {
-            re.namedCaptures = make(map[string]int)
-        }
+		if int(C.onig_number_of_names(re.regex)) > 0 {
+			re.namedCaptures = make(map[string]int)
+		}
 		//re.matchData = &MatchData{}
 		//re.matchData.captures = make([][]strRange, 0, numMatchStartSize)
 		//re.matchData.namedCaptures = make(map[string]int)
@@ -87,7 +87,6 @@ func MustCompileWithOption(str string, option int) *Regexp {
 	}
 	return regexp
 }
-
 
 func (re *Regexp) Free() {
 	mutex.Lock()
@@ -132,21 +131,21 @@ func (re *Regexp) GetAllCaptures()(srs [][]strRange) {
 */
 
 func (re *Regexp) groupNameToId(name string) (id int) {
-    if re.namedCaptures == nil {
-        return ONIGERR_UNDEFINED_NAME_REFERENCE
-    }
+	if re.namedCaptures == nil {
+		return ONIGERR_UNDEFINED_NAME_REFERENCE
+	}
 
-    //note that the Id (or Reference number) of a named capture is never 0
-    //In Go, a map returns a "default" value if the given key does not exist. If the value type is int, the "default" value is 0
-    if re.namedCaptures[name] == 0 {
-        nameCharPtr := C.CString(name)
-        defer C.free(unsafe.Pointer(nameCharPtr))
-        id = int(C.LookupOnigCaptureByName(nameCharPtr, C.int(len(name)), re.regex, re.region))
-        re.namedCaptures[name] = id
-        return
-    } 
-    id = re.namedCaptures[name]
-    return
+	//note that the Id (or Reference number) of a named capture is never 0
+	//In Go, a map returns a "default" value if the given key does not exist. If the value type is int, the "default" value is 0
+	if re.namedCaptures[name] == 0 {
+		nameCharPtr := C.CString(name)
+		defer C.free(unsafe.Pointer(nameCharPtr))
+		id = int(C.LookupOnigCaptureByName(nameCharPtr, C.int(len(name)), re.regex, re.region))
+		re.namedCaptures[name] = id
+		return
+	}
+	id = re.namedCaptures[name]
+	return
 }
 
 func (re *Regexp) getStrRange(ref int) (sr strRange) {
@@ -485,47 +484,47 @@ func (re *Regexp) NumSubexp() int {
 }
 
 func (re *Regexp) getNamedCapture(name []byte, capturedBytes [][]byte) []byte {
-    nameStr := string(name)
-    capNum := re.groupNameToId(nameStr)
-    if capNum < 0 || capNum >= len(capturedBytes) {
-        panic(fmt.Sprintf("capture group name (%q) has error\n", nameStr))
-    }
-    return capturedBytes[capNum]
+	nameStr := string(name)
+	capNum := re.groupNameToId(nameStr)
+	if capNum < 0 || capNum >= len(capturedBytes) {
+		panic(fmt.Sprintf("capture group name (%q) has error\n", nameStr))
+	}
+	return capturedBytes[capNum]
 }
 
 func (re *Regexp) getNumberedCapture(num int, capturedBytes [][]byte) []byte {
-    //when named capture groups exist, numbered capture groups returns ""
-    if re.namedCaptures == nil && num <= (len(capturedBytes) - 1) && num >= 0 {
-	    return capturedBytes[num]
-    }
-    return ([]byte)("")
+	//when named capture groups exist, numbered capture groups returns ""
+	if re.namedCaptures == nil && num <= (len(capturedBytes)-1) && num >= 0 {
+		return capturedBytes[num]
+	}
+	return ([]byte)("")
 }
 
 func fillCapturedValues(re *Regexp, repl []byte, capturedBytes [][]byte) []byte {
-    replLen := len(repl)
+	replLen := len(repl)
 	newRepl := make([]byte, 0, replLen*3)
 	inEscapeMode := false
-    inGroupNameMode := false
-    groupName := make([]byte, 0, replLen)
-    for index := 0; index < replLen; index += 1 {
-        ch := repl[index]
-        if inGroupNameMode && ch == byte('<') {
-        } else if inGroupNameMode && ch == byte('>') {
-            inGroupNameMode = false
-            capBytes := re.getNamedCapture(groupName, capturedBytes)
-            newRepl = append(newRepl, capBytes...)
-            groupName = groupName[:0] //reset the name
-        } else if inGroupNameMode {
-            groupName = append(groupName, ch)
-        } else if inEscapeMode && ch <= byte('9') && byte('1') <= ch {
+	inGroupNameMode := false
+	groupName := make([]byte, 0, replLen)
+	for index := 0; index < replLen; index += 1 {
+		ch := repl[index]
+		if inGroupNameMode && ch == byte('<') {
+		} else if inGroupNameMode && ch == byte('>') {
+			inGroupNameMode = false
+			capBytes := re.getNamedCapture(groupName, capturedBytes)
+			newRepl = append(newRepl, capBytes...)
+			groupName = groupName[:0] //reset the name
+		} else if inGroupNameMode {
+			groupName = append(groupName, ch)
+		} else if inEscapeMode && ch <= byte('9') && byte('1') <= ch {
 			capNum := int(ch - byte('0'))
-            capBytes := re.getNumberedCapture(capNum, capturedBytes)
-            newRepl = append(newRepl, capBytes...)
-		} else if inEscapeMode && ch == byte('k') && (index + 1) < replLen && repl[index + 1] == byte('<') {
-            inGroupNameMode = true
-            inEscapeMode = false
-            index += 1 //bypass the next char '<'
-        } else if inEscapeMode {
+			capBytes := re.getNumberedCapture(capNum, capturedBytes)
+			newRepl = append(newRepl, capBytes...)
+		} else if inEscapeMode && ch == byte('k') && (index+1) < replLen && repl[index+1] == byte('<') {
+			inGroupNameMode = true
+			inEscapeMode = false
+			index += 1 //bypass the next char '<'
+		} else if inEscapeMode {
 			newRepl = append(newRepl, '\\')
 			newRepl = append(newRepl, ch)
 		} else if ch != '\\' {
@@ -654,21 +653,21 @@ func MatchString(pattern string, s string) (matched bool, error os.Error) {
 }
 
 func (re *Regexp) Gsub(src, repl string) string {
-    srcBytes := ([]byte)(src)
-    replBytes := ([]byte)(repl)
-    replaced := re.replaceAll(srcBytes, replBytes, fillCapturedValues)
-    return string(replaced)
+	srcBytes := ([]byte)(src)
+	replBytes := ([]byte)(repl)
+	replaced := re.replaceAll(srcBytes, replBytes, fillCapturedValues)
+	return string(replaced)
 }
 
 func (re *Regexp) GsubFunc(src string, replFunc func(*Regexp, []string) string) string {
-    srcBytes := ([]byte)(src)
-    replaced := re.replaceAll(srcBytes, nil, func(re *Regexp, _ []byte, capturedBytes [][]byte) []byte {
-        numCaptures := len(capturedBytes)
-        capturedStrings := make([]string, numCaptures)
-        for index, capBytes := range(capturedBytes) {
-            capturedStrings[index] = string(capBytes)
-        } 
-        return ([]byte)(replFunc(re, capturedStrings))
-    })
-    return string(replaced)
+	srcBytes := ([]byte)(src)
+	replaced := re.replaceAll(srcBytes, nil, func(re *Regexp, _ []byte, capturedBytes [][]byte) []byte {
+		numCaptures := len(capturedBytes)
+		capturedStrings := make([]string, numCaptures)
+		for index, capBytes := range capturedBytes {
+			capturedStrings[index] = string(capBytes)
+		}
+		return ([]byte)(replFunc(re, capturedStrings))
+	})
+	return string(replaced)
 }

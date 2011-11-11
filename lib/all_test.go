@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-    "fmt"
+	"fmt"
 )
 
 var good_re = []string{
@@ -240,98 +240,96 @@ func TestReplaceAllFunc(t *testing.T) {
 
 /*
 * "hallo".gsub(/h(.*)llo/, "e")
-*/
+ */
 func TestGsub1(t *testing.T) {
-    input := "hallo"
-    pattern := "h(.*)llo"
-    expected := "e"
-    re, err := Compile(pattern)
-    if err != nil {
-        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
-        return
-    }
-    actual := re.Gsub(input, "e")
-    if actual != expected {
-        t.Errorf("expected %q, actual %q\n", expected, actual)
-    }
+	input := "hallo"
+	pattern := "h(.*)llo"
+	expected := "e"
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+	actual := re.Gsub(input, "e")
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
 }
 
 /*
 * "hallo".gsub(/h(?<foo>.*)llo/, "\\k<foo>")
-*/
+ */
 func TestGsubNamedCapture1(t *testing.T) {
-    input := "hallo"
-    pattern := "h(?<foo>.*)llo"
-    expected := "a"
-    re, err := Compile(pattern)
-    if err != nil {
-        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
-        return
-    }
-    actual := re.Gsub(input, "\\k<foo>")
-    if actual != expected {
-        t.Errorf("expected %q, actual %q\n", expected, actual)
-    }
+	input := "hallo"
+	pattern := "h(?<foo>.*)llo"
+	expected := "a"
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+	actual := re.Gsub(input, "\\k<foo>")
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
 }
 
 /*
 * "hallo".gsub(/h(?<foo>.*)ll(?<bar>.*)/, "\\k<foo>\\k<bar>\\k<foo>")
-*/
+ */
 func TestGsubNamedCapture2(t *testing.T) {
-    input := "hallo"
-    pattern := "h(?<foo>.*)ll(?<bar>.*)"
-    expected := "aoa"
-    re, err := Compile(pattern)
-    if err != nil {
-        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
-        return
-    }
-    actual := re.Gsub(input, "\\k<foo>\\k<bar>\\k<foo>")
-    if actual != expected {
-        t.Errorf("expected %q, actual %q\n", expected, actual)
-    }
+	input := "hallo"
+	pattern := "h(?<foo>.*)ll(?<bar>.*)"
+	expected := "aoa"
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+	actual := re.Gsub(input, "\\k<foo>\\k<bar>\\k<foo>")
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
 }
 
 /*
 * "hallo".gsub(/h(?<foo>.*)(l*)(?<bar>.*)/, "\\k<foo>\\k<bar>\\k<foo>\\1")
-*/
+ */
 func TestGsubNamedCapture3(t *testing.T) {
-    input := "hallo"
-    pattern := "h(?<foo>.*)(l*)(?<bar>.*)"
-    expected := "alloallo"
-    re, err := Compile(pattern)
-    if err != nil {
-        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
-        return
-    }
-    actual := re.Gsub(input, "\\k<foo>\\k<bar>\\k<foo>\\1")
-    if actual != expected {
-        t.Errorf("expected %q, actual %q\n", expected, actual)
-    }
+	input := "hallo"
+	pattern := "h(?<foo>.*)(l*)(?<bar>.*)"
+	expected := "alloallo"
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+	actual := re.Gsub(input, "\\k<foo>\\k<bar>\\k<foo>\\1")
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
 }
-
-
 
 /*
 * "hallo".gsub(/h(.*)llo/) { |match|
 *    "e"
 * }
-*/
+ */
 func TestGsubFunc1(t *testing.T) {
-    input := "hallo"
-    pattern := "h(.*)llo"
-    expected := "e"
-    re, err := Compile(pattern)
-    if err != nil {
-        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
-        return
-    }
-    actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
-        return "e"
-    })
-    if actual != expected {
-        t.Errorf("expected %q, actual %q\n", expected, actual)
-    }
+	input := "hallo"
+	pattern := "h(.*)llo"
+	expected := "e"
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+	actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
+		return "e"
+	})
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
 }
 
 /*
@@ -344,67 +342,65 @@ func TestGsubFunc1(t *testing.T) {
 *     end
 *   end
 * }
-*/
+ */
 func TestGsubFunc2(t *testing.T) {
-    input := "hallo"
-    pattern := "h(.*)llo"
-    expected := "abca"
-    env := make(map[string]string)
-    re, err := Compile(pattern)
-    if err != nil {
-        t.Errorf("Unexpected error compiling %q: %v", pattern, err)
-        return
-    }
-    actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
-        for index, capture := range captures {
-            env[fmt.Sprintf("%d", index)] = capture
-        }
-        re1 := MustCompile("(d)")
-        return re1.GsubFunc("abcd", func(re1 *Regexp, captures2 []string) string {
-            return env["1"]
-        })
-    })
-    if actual != expected {
-        t.Errorf("expected %q, actual %q\n", expected, actual)
-    }
+	input := "hallo"
+	pattern := "h(.*)llo"
+	expected := "abca"
+	env := make(map[string]string)
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+	actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
+		for index, capture := range captures {
+			env[fmt.Sprintf("%d", index)] = capture
+		}
+		re1 := MustCompile("(d)")
+		return re1.GsubFunc("abcd", func(re1 *Regexp, captures2 []string) string {
+			return env["1"]
+		})
+	})
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
 }
 
 /* how to match $ as itself */
 func TestPattern1(t *testing.T) {
-    re := MustCompile(`b\$a`)
-    if ! re.MatchString("b$a") {
-        t.Errorf("expect to match\n")
-    }
-    re = MustCompile("b\\$a")
-    if ! re.MatchString("b$a") {
-        t.Errorf("expect to match 2\n")
-    }
+	re := MustCompile(`b\$a`)
+	if !re.MatchString("b$a") {
+		t.Errorf("expect to match\n")
+	}
+	re = MustCompile("b\\$a")
+	if !re.MatchString("b$a") {
+		t.Errorf("expect to match 2\n")
+	}
 }
 
 /* how to use $ as the end of line */
 func TestPattern2(t *testing.T) {
-    re := MustCompile("a$")
-    if ! re.MatchString("a") {
-        t.Errorf("expect to match\n")
-    }
-    if re.MatchString("ab") {
-        t.Errorf("expect to mismatch\n")
-    }
+	re := MustCompile("a$")
+	if !re.MatchString("a") {
+		t.Errorf("expect to match\n")
+	}
+	if re.MatchString("ab") {
+		t.Errorf("expect to mismatch\n")
+	}
 }
 
 func TestCompileWithOption(t *testing.T) {
-    re := MustCompileWithOption("a$", ONIG_OPTION_IGNORECASE)
-    if ! re.MatchString("A") {
-        t.Errorf("expect to match\n")
-    }
-    re = MustCompile("a$")
-    if re.MatchString("A") {
-        t.Errorf("expect to mismatch\n")
-    }
+	re := MustCompileWithOption("a$", ONIG_OPTION_IGNORECASE)
+	if !re.MatchString("A") {
+		t.Errorf("expect to match\n")
+	}
+	re = MustCompile("a$")
+	if re.MatchString("A") {
+		t.Errorf("expect to mismatch\n")
+	}
 
 }
-
-
 
 type MetaTest struct {
 	pattern, output, literal string
