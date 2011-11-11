@@ -46,7 +46,10 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 	re = &Regexp{pattern: pattern}
 	mutex.Lock()
 	defer mutex.Unlock()
-	error_code := C.NewOnigRegex(C.CString(pattern), C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
+    patternCharPtr := C.CString(pattern)
+    defer C.free(unsafe.Pointer(patternCharPtr))
+
+	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
 		err = os.NewError(C.GoString(re.errorBuf))
 	} else {
@@ -136,7 +139,9 @@ func (re *Regexp) groupNameToId(name string) (id int) {
     //note that the Id (or Reference number) of a named capture is never 0
     //In Go, a map returns a "default" value if the given key does not exist. If the value type is int, the "default" value is 0
     if re.namedCaptures[name] == 0 {
-        id = int(C.LookupOnigCaptureByName(C.CString(name), C.int(len(name)), re.regex, re.region))
+        nameCharPtr := C.CString(name)
+        defer C.free(unsafe.Pointer(nameCharPtr))
+        id = int(C.LookupOnigCaptureByName(nameCharPtr, C.int(len(name)), re.regex, re.region))
         re.namedCaptures[name] = id
         return
     } 
