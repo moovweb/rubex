@@ -44,11 +44,11 @@ type Regexp struct {
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 	re = &Regexp{pattern: pattern}
-	mutex.Lock()
-	defer mutex.Unlock()
 	patternCharPtr := C.CString(pattern)
 	defer C.free(unsafe.Pointer(patternCharPtr))
 
+	mutex.Lock()
+	defer mutex.Unlock()
 	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
 		err = os.NewError(C.GoString(re.errorBuf))
@@ -57,9 +57,6 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 		if int(C.onig_number_of_names(re.regex)) > 0 {
 			re.namedCaptures = make(map[string]int)
 		}
-		//re.matchData = &MatchData{}
-		//re.matchData.captures = make([][]strRange, 0, numMatchStartSize)
-		//re.matchData.namedCaptures = make(map[string]int)
 	}
 	return re, err
 }
@@ -108,35 +105,12 @@ func (re *Regexp) Free() {
 	}
 }
 
-/*
-func (re *Regexp) GetCaptureAt(at int) (sr strRange) {
-  sr = nil
-  if len(re.matchData.captures) > 0 && at < len(re.matchData.captures[0]) {
-    sr = re.matchData.captures[0][at]
-  }
-  return
-}
-
-func (re *Regexp) GetCaptures()(srs []strRange) {
-  srs = nil
-  if len(re.matchData.captures) > 0 {
-    srs = re.matchData.captures[0]
-  }
-  return
-}
-
-func (re *Regexp) GetAllCaptures()(srs [][]strRange) {
-  return re.matchData.captures
-}
-*/
-
 func (re *Regexp) groupNameToId(name string) (id int) {
 	if re.namedCaptures == nil {
 		return ONIGERR_UNDEFINED_NAME_REFERENCE
 	}
 
 	//note that the Id (or Reference number) of a named capture is never 0
-	//In Go, a map returns a "default" value if the given key does not exist. If the value type is int, the "default" value is 0
 	if re.namedCaptures[name] == 0 {
 		nameCharPtr := C.CString(name)
 		defer C.free(unsafe.Pointer(nameCharPtr))
@@ -149,31 +123,35 @@ func (re *Regexp) groupNameToId(name string) (id int) {
 }
 
 func (re *Regexp) getStrRange(ref int) (sr strRange) {
-	sr = make([]int, 2)
-	sr[0] = int(C.IntAt(re.region.beg, C.int(ref)))
-	sr[1] = int(C.IntAt(re.region.end, C.int(ref)))
+	sr = nil
+	beg := int(C.IntAt(re.region.beg, C.int(ref)))
+	end := int(C.IntAt(re.region.end, C.int(ref)))
+	if beg >= 0 && end >= 0 && beg <= end {
+		//sometimes we may encounter negative index, e.g. string: aacc, and pattern: a*(|(b))c*. A bug in onig? Ruby shows the same.
+		//we should skip such 
+		sr = make([]int, 2)
+		sr[0] = beg
+		sr[1] = end
+	}
 	return
 }
 
 func (re *Regexp) processMatch() (captures []strRange) {
-	//matchData := re.matchData
 	num := (int(re.region.num_regs))
 	if num <= 0 {
 		panic("cannot have 0 captures when processing a match")
 	}
 	captures = make([]strRange, 0, num)
 	//the first element indicates the beginning and ending indexes of the match
-	//the rests are the beginning and ending indexes of the captures
+	//the rest are the beginning and ending indexes of the captures
 	for i := 0; i < num; i++ {
-		sr := re.getStrRange(i)
-		//sometimes we may encounter negative index, e.g. string: aacc, and pattern: a*(|(b))c*. A bug in onig? Ruby shows the same.
-		//we should skip such 
-		if sr[0] >= 0 && sr[1] >= 0 {
+		if sr := re.getStrRange(i); sr != nil {
 			captures = append(captures, sr)
 		}
-
 	}
-	//matchData.captures = append(matchData.captures, captures)
+	if len(captures) == 0 {
+		return nil
+	}
 	return
 }
 
@@ -186,6 +164,9 @@ func (re *Regexp) find(b []byte, n int, offset int, deliver func([]strRange)) (e
 	if pos >= 0 {
 		err = nil
 		captures := re.processMatch()
+		if captures == nil {
+			err = os.NewError(fmt.Sprintf("captures empty: re: %q, b: %q, len(b): %d, b_n: %q, b: %d\n", re.String(), string(b), len(b), string(b[:n]), n))
+		}
 		if deliver != nil {
 			deliver(captures)
 		}
@@ -213,7 +194,7 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
 	err = nil
 	offset := 0
 	hasMatched := false
-	for err == nil && offset <= n {
+	for offset <= n {
 		err = re.find(b, n, offset, func(kaps []strRange) {
 			captures = kaps
 		})
@@ -229,10 +210,12 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
 			//if match[0] == match[1], it means the current match does not advance the search. we need to exit the loop to avoid getting stuck here.
 			if match[0] == match[1] {
 				if offset < n {
+					//there are more bytes, so move offset by a word
 					_, width := utf8.DecodeRune(b[offset:])
 					offset += width
 				} else {
-					offset += 1
+					//search is over, exit loop
+					break
 				}
 			}
 		} else {
@@ -243,9 +226,6 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
 	if hasMatched {
 		err = nil
 	}
-	//if err != nil {
-	//fmt.Printf("find Error: %q pattern: %v str: %v\n", err, re, b)
-	//}
 	return
 }
 
@@ -286,11 +266,11 @@ func (re *Regexp) FindStringIndex(s string) []int {
 
 func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
 	matches := make([][]int, 0, numMatchStartSize)
-	re.findAll(b, n, func(captures []strRange) {
+	err := re.findAll(b, n, func(captures []strRange) {
 		match := captures[0]
 		matches = append(matches, match)
 	})
-	if len(matches) == 0 {
+	if err != nil || len(matches) == 0 {
 		return nil
 	}
 	return matches
@@ -363,8 +343,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 	}
 	length := len(captures)
 	results := make([][]byte, 0, length)
-	for i := 0; i < length; i++ {
-		cap := captures[i]
+	for _, cap := range(captures) {
 		results = append(results, b[cap[0]:cap[1]])
 	}
 	if len(results) == 0 {
@@ -381,8 +360,7 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
 	}
 	length := len(captures)
 	results := make([]string, 0, length)
-	for i := 0; i < length; i++ {
-		cap := captures[i]
+	for _, cap := range(captures) {
 		results = append(results, string(b[cap[0]:cap[1]]))
 	}
 	if len(results) == 0 {
