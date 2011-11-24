@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"fmt"
+	"runtime"
 )
 
 var good_re = []string{
@@ -54,6 +55,21 @@ var bad_re = []stringError{
 	//{`\x`, Err},
 }
 
+func runParallel(testFunc func(chan bool), concurrency int) {
+    runtime.GOMAXPROCS(4)
+    done := make(chan bool, concurrency)
+    for i := 0; i < concurrency; i++ {
+        go testFunc(done)
+    }
+    for i := 0; i < concurrency; i++ {
+        <-done
+        <-done
+    }
+    runtime.GOMAXPROCS(1)
+}
+
+const numConcurrentRuns = 1000
+
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
 	re, err := Compile(expr)
 	if (error == nil && err != error) || (error != nil && err.String() != error.String()) {
@@ -63,9 +79,14 @@ func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
 }
 
 func TestGoodCompile(t *testing.T) {
-	for i := 0; i < len(good_re); i++ {
-		compileTest(t, good_re[i], nil)
-	}
+	testFunc := func(done chan bool) {
+		done <- false
+		for i := 0; i < len(good_re); i++ {
+			compileTest(t, good_re[i], nil)
+		}
+		done <- true
+    }
+    runParallel(testFunc, numConcurrentRuns)		
 }
 
 func TestBadCompile(t *testing.T) {
