@@ -23,15 +23,6 @@ const numReadBufferStartSize = 256
 
 var mutex sync.Mutex
 
-type MatchData struct {
-	//captures[i-1] is the i-th match -- there could be multiple non-overlapping matches for a given pattern
-	//captures[i-1][0] gives the beginning and ending index of the i-th match
-	//captures[i-1][j] (j >=1) gives the beginning and ending index of the j-th capture for the i-th match
-	captures [][]strRange
-	//namedCaptures["foo"] gives the j index of named capture "foo", then j can be used to get the beginning and ending index of the capture for this match
-	namedCaptures map[string]int
-}
-
 type Regexp struct {
 	pattern       string
 	regex         C.OnigRegex
@@ -39,6 +30,8 @@ type Regexp struct {
 	encoding      C.OnigEncoding
 	errorInfo     *C.OnigErrorInfo
 	errorBuf      *C.char
+	captureIndexes  []int
+	captures      []strRange
 	namedCaptures map[string]int
 }
 
@@ -57,6 +50,12 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 		if int(C.onig_number_of_names(re.regex)) > 0 {
 			re.namedCaptures = make(map[string]int)
 		}
+		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
+		re.captures = make([]strRange, numCapturesInPattern)
+		for i := 0; i < numCapturesInPattern; i ++ {
+			re.captures[i] = make([]int, 2)
+		}
+		re.captureIndexes = make([]int, numCapturesInPattern * 2)
 	}
 	return re, err
 }
@@ -137,20 +136,25 @@ func (re *Regexp) getStrRange(ref int) (sr strRange) {
 }
 
 func (re *Regexp) processMatch() (captures []strRange) {
-	num := (int(re.region.num_regs))
-	if num <= 0 {
+	num_regs := (int)(re.region.num_regs)
+	if num_regs <= 0 {
 		panic("cannot have 0 captures when processing a match")
 	}
-	captures = make([]strRange, 0, num)
+	captures = make([]strRange, 0, num_regs)
 	//the first element indicates the beginning and ending indexes of the match
 	//the rest are the beginning and ending indexes of the captures
-	for i := 0; i < num; i++ {
-		if sr := re.getStrRange(i); sr != nil {
+	for i := 0; i < num_regs; i ++ {
+		beg := re.captureIndexes[2*i]
+		end := re.captureIndexes[2*i+1]
+		if beg >= 0 && end >= beg {
+			sr := make([]int, 2)
+			sr[0] = beg
+			sr[1] = end
 			captures = append(captures, sr)
 		}
 	}
 	if len(captures) == 0 {
-		return nil
+		panic("cannot have 0 captures when processing a match")
 	}
 	return
 }
@@ -160,13 +164,15 @@ func (re *Regexp) find(b []byte, n int, offset int, deliver func([]strRange)) (e
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, re.errorBuf))
+	capturesPtr := unsafe.Pointer(&re.captureIndexes[0])
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, re.errorBuf, (*C.int)(capturesPtr)))
 	if pos >= 0 {
 		err = nil
 		captures := re.processMatch()
+		/*
 		if captures == nil {
 			err = os.NewError(fmt.Sprintf("captures empty: re: %q, b: %q, len(b): %d, b_n: %q, b: %d\n", re.String(), string(b), len(b), string(b[:n]), n))
-		}
+		}*/
 		if deliver != nil {
 			deliver(captures)
 		}
@@ -181,7 +187,8 @@ func (re *Regexp) match(b []byte, n int, offset int) bool {
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil)))
+	capturesPtr := unsafe.Pointer(&re.captureIndexes[0])
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr)))
 	//pos := int(C.MatchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region))
 	return pos >= 0
 }

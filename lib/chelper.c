@@ -38,7 +38,7 @@ int NewOnigRegex( char *pattern, int pattern_length, int option,
 }
 
 int SearchOnigRegex( void *str, int str_length, int offset, int option,
-                  OnigRegex regex, OnigRegion *region, OnigErrorInfo *error_info, char *error_buffer) {
+                  OnigRegex regex, OnigRegion *region, OnigErrorInfo *error_info, char *error_buffer, int *captures) {
     int ret = ONIG_MISMATCH;
     int error_msg_len = 0;
 #ifdef BENCHMARK_CHELP
@@ -63,21 +63,19 @@ int SearchOnigRegex( void *str, int str_length, int offset, int option,
         }
         error_buffer[error_msg_len] = '\0';
     }
-    /*
     else {
         int i;
-        fprintf(stderr, "match at %d\n", ret);
         for (i = 0; i < region->num_regs; i++) {
-            fprintf(stderr, "%d: (%d-%d)\n", i, region->beg[i], region->end[i]);
+		captures[2*i] = region->beg[i];
+		captures[2*i+1] = region->end[i];
         }
-    }*/
+    }
 
 #ifdef BENCHMARK_CHELP
     gettimeofday(&tim2, NULL);
     t = (tim2.tv_sec - tim1.tv_sec) * 1000000 + tim2.tv_usec - tim1.tv_usec;
     printf("%ld microseconds elapsed\n", t);
 #endif
-
     return ret;
 }
 
