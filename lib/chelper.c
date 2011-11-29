@@ -38,7 +38,7 @@ int NewOnigRegex( char *pattern, int pattern_length, int option,
 }
 
 int SearchOnigRegex( void *str, int str_length, int offset, int option,
-                  OnigRegex regex, OnigRegion *region, OnigErrorInfo *error_info, char *error_buffer, int *captures) {
+                  OnigRegex regex, OnigRegion *region, OnigErrorInfo *error_info, char *error_buffer, int *captures, int *numCaptures) {
     int ret = ONIG_MISMATCH;
     int error_msg_len = 0;
 #ifdef BENCHMARK_CHELP
@@ -63,12 +63,17 @@ int SearchOnigRegex( void *str, int str_length, int offset, int option,
         }
         error_buffer[error_msg_len] = '\0';
     }
-    else {
+    else if (captures != NULL) {
         int i;
+		int count = 0;
         for (i = 0; i < region->num_regs; i++) {
-		captures[2*i] = region->beg[i];
-		captures[2*i+1] = region->end[i];
+			if (region->beg[i] >= 0 && region->end[i] >= region->beg[i]) {
+				captures[2*count] = region->beg[i];
+				captures[2*count+1] = region->end[i];
+				count ++;
+			}
         }
+		*numCaptures = count;
     }
 
 #ifdef BENCHMARK_CHELP

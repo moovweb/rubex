@@ -30,8 +30,9 @@ type Regexp struct {
 	encoding      C.OnigEncoding
 	errorInfo     *C.OnigErrorInfo
 	errorBuf      *C.char
-	captureIndexes  []int
-	captures      []strRange
+	matches       [][]int
+	matchIndex    int
+	numCapturesInPattern int
 	namedCaptures map[string]int
 }
 
@@ -51,11 +52,11 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 			re.namedCaptures = make(map[string]int)
 		}
 		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
-		re.captures = make([]strRange, numCapturesInPattern)
-		for i := 0; i < numCapturesInPattern; i ++ {
-			re.captures[i] = make([]int, 2)
+		re.matches = make([][]int, numMatchStartSize)
+		for i := 0; i < numMatchStartSize; i ++ {
+			re.matches[i] = make([]int, numCapturesInPattern*2)
 		}
-		re.captureIndexes = make([]int, numCapturesInPattern * 2)
+		re.numCapturesInPattern = numCapturesInPattern
 	}
 	return re, err
 }
@@ -135,49 +136,28 @@ func (re *Regexp) getStrRange(ref int) (sr strRange) {
 	return
 }
 
-func (re *Regexp) processMatch() (captures []strRange) {
-	num_regs := (int)(re.region.num_regs)
-	if num_regs <= 0 {
+func (re *Regexp) processMatch(numCaptures int) (match []int) {
+	if numCaptures <= 0 {
 		panic("cannot have 0 captures when processing a match")
 	}
-	captures = make([]strRange, 0, num_regs)
-	//the first element indicates the beginning and ending indexes of the match
-	//the rest are the beginning and ending indexes of the captures
-	for i := 0; i < num_regs; i ++ {
-		beg := re.captureIndexes[2*i]
-		end := re.captureIndexes[2*i+1]
-		if beg >= 0 && end >= beg {
-			sr := make([]int, 2)
-			sr[0] = beg
-			sr[1] = end
-			captures = append(captures, sr)
-		}
-	}
-	if len(captures) == 0 {
-		panic("cannot have 0 captures when processing a match")
-	}
-	return
+	return re.matches[re.matchIndex][:numCaptures*2]
 }
 
-func (re *Regexp) find(b []byte, n int, offset int, deliver func([]strRange)) (err os.Error) {
+func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 	if n == 0 {
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-	capturesPtr := unsafe.Pointer(&re.captureIndexes[0])
-	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, re.errorBuf, (*C.int)(capturesPtr)))
+
+	capturesPtr := unsafe.Pointer(&(re.matches[re.matchIndex][0]))
+	numCaptures := 0
+	numCapturesPtr := unsafe.Pointer(&numCaptures)
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr), (*C.int)(numCapturesPtr)))
 	if pos >= 0 {
-		err = nil
-		captures := re.processMatch()
-		/*
-		if captures == nil {
-			err = os.NewError(fmt.Sprintf("captures empty: re: %q, b: %q, len(b): %d, b_n: %q, b: %d\n", re.String(), string(b), len(b), string(b[:n]), n))
-		}*/
-		if deliver != nil {
-			deliver(captures)
+		if numCaptures <= 0 {
+			panic("cannot have 0 captures when processing a match")
 		}
-	} else {
-		err = os.NewError(C.GoString(re.errorBuf))
+		match = re.matches[re.matchIndex][:numCaptures*2]
 	}
 	return
 }
@@ -187,31 +167,22 @@ func (re *Regexp) match(b []byte, n int, offset int) bool {
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-	capturesPtr := unsafe.Pointer(&re.captureIndexes[0])
-	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr)))
-	//pos := int(C.MatchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region))
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(nil), (*C.int)(nil)))
 	return pos >= 0
 }
 
-func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Error) {
+func (re *Regexp) findAll(b []byte, n int) (matches [][]int) {
 	if n < 0 {
 		n = len(b)
 	}
-	var captures []strRange
-	err = nil
 	offset := 0
-	hasMatched := false
+	re.matchIndex = 0
 	for offset <= n {
-		err = re.find(b, n, offset, func(kaps []strRange) {
-			captures = kaps
-		})
-		if err == nil {
-			hasMatched = true
-			//we need to adjust the captures' indexes by offset because the search starts at offset
-			//captures = adjustStrRangeByOffset(captures, offset)
-			deliver(captures)
-			//remember the first capture is in fact the current match
-			match := captures[0]
+		if re.matchIndex >= len(re.matches) {
+			re.matches = append(re.matches, make([]int, re.numCapturesInPattern*2))
+		}
+		if match := re.find(b, n, offset); len(match) > 0 {
+			re.matchIndex += 1
 			//move offset to the ending index of the current match and prepare to find the next non-overlapping match
 			offset = match[1]
 			//if match[0] == match[1], it means the current match does not advance the search. we need to exit the loop to avoid getting stuck here.
@@ -229,32 +200,25 @@ func (re *Regexp) findAll(b []byte, n int, deliver func([]strRange)) (err os.Err
 			break
 		}
 	}
-	//if there has been a match, we should not return error
-	if hasMatched {
-		err = nil
-	}
+	matches = re.matches[:re.matchIndex]
 	return
 }
 
-func (re *Regexp) FindIndex(b []byte) (loc []int) {
-	var captures []strRange
-	err := re.find(b, len(b), 0, func(caps []strRange) {
-		captures = caps
-	})
-	if err == nil {
-		loc = captures[0]
-	} else {
-		loc = nil
+func (re *Regexp) FindIndex(b []byte) []int {
+	re.matchIndex = 0
+	match := re.find(b, len(b), 0)
+	if len(match) == 0 {
+		return nil
 	}
-	return
+	return match[:2]
 }
 
 func (re *Regexp) Find(b []byte) []byte {
-	match := re.FindIndex(b)
-	if match == nil {
+	loc := re.FindIndex(b)
+	if loc == nil {
 		return nil
 	}
-	return b[match[0]:match[1]]
+	return b[loc[0]:loc[1]]
 }
 
 func (re *Regexp) FindString(s string) string {
@@ -272,12 +236,8 @@ func (re *Regexp) FindStringIndex(s string) []int {
 }
 
 func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
-	matches := make([][]int, 0, numMatchStartSize)
-	err := re.findAll(b, n, func(captures []strRange) {
-		match := captures[0]
-		matches = append(matches, match)
-	})
-	if err != nil || len(matches) == 0 {
+	matches := re.findAll(b, n)
+	if len(matches) == 0 {
 		return nil
 	}
 	return matches
@@ -314,64 +274,50 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 	return re.FindAllIndex(b, n)
 }
 
-func (re *Regexp) findSubmatchIndex(b []byte) (captures []strRange) {
-	err := re.find(b, len(b), 0, func(caps []strRange) {
-		captures = caps
-	})
-	if err != nil {
-		captures = nil
-	}
+func (re *Regexp) findSubmatchIndex(b []byte) (match []int) {
+	re.matchIndex = 0
+	match = re.find(b, len(b), 0)
 	return
 }
 
-func flattenCaptures(captures []strRange) []int {
-	if captures == nil {
-		return nil
-	}
-	flatCaptures := make([]int, 0, len(captures)*2)
-	for _, cap := range captures {
-		flatCaptures = append(flatCaptures, cap[0])
-		flatCaptures = append(flatCaptures, cap[1])
-	}
-	if len(flatCaptures) == 0 {
-		return nil
-	}
-	return flatCaptures
-}
-
 func (re *Regexp) FindSubmatchIndex(b []byte) []int {
-	return flattenCaptures(re.findSubmatchIndex(b))
+	match := re.findSubmatchIndex(b)
+	if len(match) == 0 {
+		return nil
+	}
+	return match
 }
 
 func (re *Regexp) FindSubmatch(b []byte) [][]byte {
-	captures := re.findSubmatchIndex(b)
-	if captures == nil {
+	match := re.findSubmatchIndex(b)
+	if match == nil {
 		return nil
 	}
-	length := len(captures)
+	length := len(match)/2
+	if length == 0 {
+		return nil
+	}
 	results := make([][]byte, 0, length)
-	for _, cap := range(captures) {
-		results = append(results, b[cap[0]:cap[1]])
-	}
-	if len(results) == 0 {
-		return nil
+	for i := 0; i < length; i ++ {
+		results = append(results, b[match[2*i]:match[2*i+1]])
 	}
 	return results
 }
 
 func (re *Regexp) FindStringSubmatch(s string) []string {
 	b := []byte(s)
-	captures := re.findSubmatchIndex(b)
-	if captures == nil {
+	match := re.findSubmatchIndex(b)
+	if match == nil {
 		return nil
 	}
-	length := len(captures)
+	length := len(match)/2
+	if length == 0 {
+		return nil
+	}
+
 	results := make([]string, 0, length)
-	for _, cap := range(captures) {
-		results = append(results, string(b[cap[0]:cap[1]]))
-	}
-	if len(results) == 0 {
-		return nil
+	for i := 0; i < length; i ++ {
+		results = append(results, string(b[match[2*i]:match[2*i+1]]))
 	}
 	return results
 }
@@ -381,71 +327,46 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 	return re.FindSubmatchIndex(b)
 }
 
-func (re *Regexp) findAllSubmatchIndex(b []byte, n int) [][]strRange {
-	allCaptures := make([][]strRange, 0, numMatchStartSize)
-	re.findAll(b, n, func(caps []strRange) {
-		allCaptures = append(allCaptures, caps)
-	})
-
-	if len(allCaptures) == 0 {
-		return nil
-	}
-	return allCaptures
-}
-
 func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
-	allCaptures := re.findAllSubmatchIndex(b, n)
-	if len(allCaptures) == 0 {
+	matches := re.findAll(b, n)
+	if len(matches) == 0 {
 		return nil
 	}
-	allFlatCaptures := make([][]int, 0, len(allCaptures))
-	for _, captures := range allCaptures {
-		flatCaptures := flattenCaptures(captures)
-		allFlatCaptures = append(allFlatCaptures, flatCaptures)
-	}
-	if len(allFlatCaptures) == 0 {
-		return nil
-	}
-	return allFlatCaptures
+	return matches
 }
 
 func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
-	allCaptures := re.findAllSubmatchIndex(b, n)
-	if len(allCaptures) == 0 {
+	matches := re.findAll(b, n)
+	if len(matches) == 0 {
 		return nil
 	}
-	allCapturedBytes := make([][][]byte, 0, len(allCaptures))
-	for _, captures := range allCaptures {
-		capturedBytes := make([][]byte, 0, len(captures))
-		for _, cap := range captures {
-			capturedBytes = append(capturedBytes, b[cap[0]:cap[1]])
+	allCapturedBytes := make([][][]byte, 0, len(matches))
+	for _, match := range matches {
+		length := len(match)/2
+		capturedBytes := make([][]byte, 0, length)
+		for i := 0; i < length; i++ {
+			capturedBytes = append(capturedBytes, b[match[2*i]:match[2*i+1]])
 		}
 		allCapturedBytes = append(allCapturedBytes, capturedBytes)
 	}
 
-	if len(allCapturedBytes) == 0 {
-		return nil
-	}
 	return allCapturedBytes
 }
 
 func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 	b := []byte(s)
-	allCaptures := re.findAllSubmatchIndex(b, n)
-	if len(allCaptures) == 0 {
+	matches := re.findAll(b, n)
+	if len(matches) == 0 {
 		return nil
 	}
-	allCapturedStrings := make([][]string, 0, len(allCaptures))
-	for _, captures := range allCaptures {
-		capturedStrings := make([]string, 0, len(captures))
-		for _, cap := range captures {
-			capturedStrings = append(capturedStrings, string(b[cap[0]:cap[1]]))
+	allCapturedStrings := make([][]string, 0, len(matches))
+	for _, match := range matches {
+		length := len(match)/2
+		capturedStrings := make([]string, 0, length)
+		for i := 0; i < length; i++ {
+			capturedStrings = append(capturedStrings, string(b[match[2*i]:match[2*i+1]]))
 		}
 		allCapturedStrings = append(allCapturedStrings, capturedStrings)
-	}
-
-	if len(allCapturedStrings) == 0 {
-		return nil
 	}
 	return allCapturedStrings
 }
@@ -523,21 +444,21 @@ func fillCapturedValues(re *Regexp, repl []byte, capturedBytes [][]byte) []byte 
 }
 
 func (re *Regexp) replaceAll(src, repl []byte, replFunc func(*Regexp, []byte, [][]byte) []byte) []byte {
-	allCaptures := re.findAllSubmatchIndex(src, len(src))
-	if allCaptures == nil {
+	matches := re.findAll(src, len(src))
+	if len(matches) == 0 {
 		return src
 	}
 	dest := make([]byte, 0, len(src))
-	for i, captures := range allCaptures {
-		capturedBytes := make([][]byte, 0, len(captures))
-		for _, cap := range captures {
-			capturedBytes = append(capturedBytes, src[cap[0]:cap[1]])
+	for i, match := range matches {
+		length := len(match)/2
+		capturedBytes := make([][]byte, 0, length)
+		for i := 0; i < length; i ++ {
+			capturedBytes = append(capturedBytes, src[match[2*i]:match[2*i+1]])
 		}
 		newRepl := replFunc(re, repl, capturedBytes)
-		match := captures[0]
 		prevEnd := 0
 		if i > 0 {
-			prevMatch := allCaptures[i-1][0]
+			prevMatch := matches[i-1][:2]
 			prevEnd = prevMatch[1]
 		}
 		if match[0] > prevEnd {
@@ -545,7 +466,7 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func(*Regexp, []byte, []
 		}
 		dest = append(dest, newRepl...)
 	}
-	lastEnd := allCaptures[len(allCaptures)-1][0][1]
+	lastEnd := matches[len(matches)-1][1]
 	if lastEnd < len(src) {
 		if lastEnd < len(src) {
 			dest = append(dest, src[lastEnd:]...)

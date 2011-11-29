@@ -68,7 +68,7 @@ func runParallel(testFunc func(chan bool), concurrency int) {
     runtime.GOMAXPROCS(1)
 }
 
-const numConcurrentRuns = 1000
+const numConcurrentRuns = 200
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
 	re, err := Compile(expr)
