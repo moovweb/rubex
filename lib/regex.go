@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"os"
 	"io"
+	"bytes"
+	"log"
 	"utf8"
 	"sync"
 )
@@ -23,6 +25,11 @@ const numReadBufferStartSize = 256
 
 var mutex sync.Mutex
 
+type namedCapture struct {
+	id int
+	capture []byte
+}
+
 type Regexp struct {
 	pattern       string
 	regex         C.OnigRegex
@@ -33,7 +40,8 @@ type Regexp struct {
 	matches       [][]int
 	matchIndex    int
 	numCapturesInPattern int
-	namedCaptures map[string]int
+	//TODO change this to an array
+	namedCaptures map[string]*namedCapture
 }
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
@@ -48,8 +56,26 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 		err = os.NewError(C.GoString(re.errorBuf))
 	} else {
 		err = nil
-		if int(C.onig_number_of_names(re.regex)) > 0 {
-			re.namedCaptures = make(map[string]int)
+		numNamedGroups := int(C.onig_number_of_names(re.regex))
+		if numNamedGroups > 0 {
+			re.namedCaptures = make(map[string]*namedCapture)
+			bufferSize := len(pattern)*2
+			nameBuffer := make([]byte, bufferSize)
+			groupNumbers := make([]int, numNamedGroups)
+			bufferPtr := unsafe.Pointer(&nameBuffer[0])
+			numbersPtr := unsafe.Pointer(&groupNumbers[0])
+			length := int(C.GetCaptureNames(re.regex, bufferPtr, (C.int)(bufferSize), (*C.int)(numbersPtr)))
+			if length > 0  {
+				namesAsBytes := bytes.Split(nameBuffer[:length], ([]byte)(";"))
+				if len(namesAsBytes) != numNamedGroups {
+					log.Fatalf("the number of named groups (%d) does not match the number names found (%d)\n", numNamedGroups, len(namesAsBytes))
+				}
+				for i, nameAsBytes := range(namesAsBytes) {
+					name := string(nameAsBytes)
+					nc := &namedCapture{id: groupNumbers[i]} 
+					re.namedCaptures[name] = nc
+				}
+			}
 		}
 		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
 		re.matches = make([][]int, numMatchStartSize)
@@ -111,30 +137,17 @@ func (re *Regexp) groupNameToId(name string) (id int) {
 	}
 
 	//note that the Id (or Reference number) of a named capture is never 0
-	if re.namedCaptures[name] == 0 {
+	if re.namedCaptures[name] == nil {
 		nameCharPtr := C.CString(name)
 		defer C.free(unsafe.Pointer(nameCharPtr))
 		id = int(C.LookupOnigCaptureByName(nameCharPtr, C.int(len(name)), re.regex, re.region))
-		re.namedCaptures[name] = id
+		re.namedCaptures[name] = &namedCapture{id:id}
 		return
 	}
-	id = re.namedCaptures[name]
+	id = re.namedCaptures[name].id
 	return
 }
 
-func (re *Regexp) getStrRange(ref int) (sr strRange) {
-	sr = nil
-	beg := int(C.IntAt(re.region.beg, C.int(ref)))
-	end := int(C.IntAt(re.region.end, C.int(ref)))
-	if beg >= 0 && end >= 0 && beg <= end {
-		//sometimes we may encounter negative index, e.g. string: aacc, and pattern: a*(|(b))c*. A bug in onig? Ruby shows the same.
-		//we should skip such 
-		sr = make([]int, 2)
-		sr[0] = beg
-		sr[1] = end
-	}
-	return
-}
 
 func (re *Regexp) processMatch(numCaptures int) (match []int) {
 	if numCaptures <= 0 {
@@ -158,6 +171,13 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 			panic("cannot have 0 captures when processing a match")
 		}
 		match = re.matches[re.matchIndex][:numCaptures*2]
+		if re.namedCaptures != nil {
+			for _, value := range(re.namedCaptures) {
+				beg := match[value.id*2]
+				end := match[value.id*2+1]
+				value.capture = b[beg:end]
+			}
+		}
 	}
 	return
 }
@@ -563,6 +583,17 @@ func (re *Regexp) Gsub(src, repl string) string {
 	replBytes := ([]byte)(repl)
 	replaced := re.replaceAll(srcBytes, replBytes, fillCapturedValues)
 	return string(replaced)
+}
+
+func (re *Regexp) GetAllNamedCaptures() (namedCaptures map[string]string) {
+	if re.namedCaptures == nil {
+		return nil
+	}
+	namedCaptures = make(map[string]string)
+	for name, value := range(re.namedCaptures) {
+		namedCaptures[name] = string(value.capture)
+	}
+	return
 }
 
 func (re *Regexp) GsubFunc(src string, replFunc func(*Regexp, []string) string) string {

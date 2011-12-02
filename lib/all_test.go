@@ -293,6 +293,12 @@ func TestGsubNamedCapture1(t *testing.T) {
 	if actual != expected {
 		t.Errorf("expected %q, actual %q\n", expected, actual)
 	}
+
+	namedCaptures := re.GetAllNamedCaptures()
+	if namedCaptures["foo"] != "a" || len(namedCaptures) != 1 {
+		t.Errorf("GetAllNamedCaptures returns unexpected result, %q != %q\n", namedCaptures["foo"], "a")
+	}
+	
 }
 
 /*
@@ -311,6 +317,11 @@ func TestGsubNamedCapture2(t *testing.T) {
 	if actual != expected {
 		t.Errorf("expected %q, actual %q\n", expected, actual)
 	}
+	namedCaptures := re.GetAllNamedCaptures()
+	if namedCaptures["foo"] != "a" || namedCaptures["bar"] != "o" || len(namedCaptures) != 2 {
+		t.Errorf("GetAllNamedCaptures returns unexpected result\n")
+	}
+
 }
 
 /*
