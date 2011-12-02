@@ -27,7 +27,7 @@ var mutex sync.Mutex
 
 type namedCapture struct {
 	id int
-	capture []byte
+	capture [][]byte
 }
 
 type Regexp struct {
@@ -73,6 +73,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 				for i, nameAsBytes := range(namesAsBytes) {
 					name := string(nameAsBytes)
 					nc := &namedCapture{id: groupNumbers[i]} 
+					nc.capture = make([][]byte, numMatchStartSize)
 					re.namedCaptures[name] = nc
 				}
 			}
@@ -171,13 +172,6 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 			panic("cannot have 0 captures when processing a match")
 		}
 		match = re.matches[re.matchIndex][:numCaptures*2]
-		if re.namedCaptures != nil {
-			for _, value := range(re.namedCaptures) {
-				beg := match[value.id*2]
-				end := match[value.id*2+1]
-				value.capture = b[beg:end]
-			}
-		}
 	}
 	return
 }
@@ -200,8 +194,18 @@ func (re *Regexp) findAll(b []byte, n int) (matches [][]int) {
 	for offset <= n {
 		if re.matchIndex >= len(re.matches) {
 			re.matches = append(re.matches, make([]int, re.numCapturesInPattern*2))
+			for _, value := range(re.namedCaptures) {
+				value.capture = append(value.capture, nil)
+			}
 		}
 		if match := re.find(b, n, offset); len(match) > 0 {
+			if re.namedCaptures != nil {
+				for _, value := range(re.namedCaptures) {
+					beg := match[value.id*2]
+					end := match[value.id*2+1]
+					value.capture[re.matchIndex] = b[beg:end]
+				}
+			}
 			re.matchIndex += 1
 			//move offset to the ending index of the current match and prepare to find the next non-overlapping match
 			offset = match[1]
@@ -585,13 +589,13 @@ func (re *Regexp) Gsub(src, repl string) string {
 	return string(replaced)
 }
 
-func (re *Regexp) GetAllNamedCaptures() (namedCaptures map[string]string) {
-	if re.namedCaptures == nil {
+func (re *Regexp) GetAllNamedCaptures(index int) (namedCaptures map[string]string) {
+	if re.namedCaptures == nil || index >= re.matchIndex {
 		return nil
 	}
 	namedCaptures = make(map[string]string)
 	for name, value := range(re.namedCaptures) {
-		namedCaptures[name] = string(value.capture)
+		namedCaptures[name] = string(value.capture[index])
 	}
 	return
 }
