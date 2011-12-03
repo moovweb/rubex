@@ -109,10 +109,6 @@ int MatchOnigRegex(void *str, int str_length, int offset, int option,
     return ret;
 }
 
-int IntAt(int *int_array, int index) {
-    return (int)int_array[index];
-}
-
 int LookupOnigCaptureByName(char *name, int name_length,
                   OnigRegex regex, OnigRegion *region) {
     int ret = ONIGERR_UNDEFINED_NAME_REFERENCE;
@@ -134,4 +130,57 @@ int LookupOnigCaptureByName(char *name, int name_length,
     return ret;
 }
 
+typedef struct {
+	char *nameBuffer;
+	int bufferOffset;
+	int bufferSize;
+	int *numbers;
+	int numIndex;
+} group_info_t;
+
+int name_callback(const UChar* name, const UChar* name_end,
+          int ngroup_num, int* group_nums,
+          regex_t* reg, void* arg)
+{
+	int nameLen, offset, newOffset;
+	group_info_t *groupInfo;
+	
+	groupInfo = (group_info_t*) arg;
+	offset = groupInfo->bufferOffset;
+	nameLen = name_end - name;
+	newOffset = offset + nameLen;
+	
+	//if there are already names, add a ";"
+	if (offset > 0) {
+		newOffset += 1;
+	}
+	
+	if (newOffset <= groupInfo->bufferSize) {
+		if (offset > 0) {
+			groupInfo->nameBuffer[offset] = ';';
+			offset += 1;
+		} 
+		strncpy(&groupInfo->nameBuffer[offset], name, nameLen);
+	}
+	groupInfo->bufferOffset = newOffset;
+	if (ngroup_num > 0) {
+		groupInfo->numbers[groupInfo->numIndex] = group_nums[ngroup_num-1];
+	} else {
+		groupInfo->numbers[groupInfo->numIndex] = -1;
+	}
+	groupInfo->numIndex += 1;
+	return 0;  /* 0: continue */
+}
+
+int GetCaptureNames(OnigRegex reg, void *buffer, int bufferSize, int* groupNumbers) {
+	int ret;
+	group_info_t groupInfo;
+	groupInfo.nameBuffer = (char*)buffer;
+	groupInfo.bufferOffset = 0;
+	groupInfo.bufferSize = bufferSize;
+	groupInfo.numbers = groupNumbers;
+	groupInfo.numIndex = 0;
+	onig_foreach_name(reg, name_callback, (void* )&groupInfo);
+	return groupInfo.bufferOffset;
+}
 
