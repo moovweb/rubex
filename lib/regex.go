@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"unsafe"
+	"strconv"
 	"fmt"
 	"os"
 	"io"
@@ -478,7 +479,7 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func(*Regexp, []byte, ma
 		capturedBytes := make(map[string][]byte)
 		if re.namedGroupInfo == nil {
 			for i := 0; i < length; i ++ {
-				capturedBytes[fmt.Sprintf("%d", i)] = src[match[2*i]:match[2*i+1]]
+				capturedBytes[strconv.Itoa(i)] = src[match[2*i]:match[2*i+1]]
 			}
 		} else {
 			for name, i := range(re.namedGroupInfo) {
