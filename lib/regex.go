@@ -25,10 +25,12 @@ const numReadBufferStartSize = 256
 
 var mutex sync.Mutex
 
-type namedCapture struct {
-	id int
-	capture [][]byte
+type MatchData struct {
+	count int
+	indexes [][]int
 }
+
+type NamedGroupInfo map[string]int
 
 type Regexp struct {
 	pattern       string
@@ -37,11 +39,8 @@ type Regexp struct {
 	encoding      C.OnigEncoding
 	errorInfo     *C.OnigErrorInfo
 	errorBuf      *C.char
-	matches       [][]int
-	matchIndex    int
-	numCapturesInPattern int
-	//TODO change this to an array
-	namedCaptures map[string]*namedCapture
+	matchData     *MatchData
+	namedGroupInfo   NamedGroupInfo
 }
 
 func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
@@ -56,34 +55,13 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 		err = os.NewError(C.GoString(re.errorBuf))
 	} else {
 		err = nil
-		numNamedGroups := int(C.onig_number_of_names(re.regex))
-		if numNamedGroups > 0 {
-			re.namedCaptures = make(map[string]*namedCapture)
-			bufferSize := len(pattern)*2
-			nameBuffer := make([]byte, bufferSize)
-			groupNumbers := make([]int, numNamedGroups)
-			bufferPtr := unsafe.Pointer(&nameBuffer[0])
-			numbersPtr := unsafe.Pointer(&groupNumbers[0])
-			length := int(C.GetCaptureNames(re.regex, bufferPtr, (C.int)(bufferSize), (*C.int)(numbersPtr)))
-			if length > 0  {
-				namesAsBytes := bytes.Split(nameBuffer[:length], ([]byte)(";"))
-				if len(namesAsBytes) != numNamedGroups {
-					log.Fatalf("the number of named groups (%d) does not match the number names found (%d)\n", numNamedGroups, len(namesAsBytes))
-				}
-				for i, nameAsBytes := range(namesAsBytes) {
-					name := string(nameAsBytes)
-					nc := &namedCapture{id: groupNumbers[i]} 
-					nc.capture = make([][]byte, numMatchStartSize)
-					re.namedCaptures[name] = nc
-				}
-			}
-		}
 		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
-		re.matches = make([][]int, numMatchStartSize)
+		re.matchData = &MatchData{}
+		re.matchData.indexes = make([][]int, numMatchStartSize)
 		for i := 0; i < numMatchStartSize; i ++ {
-			re.matches[i] = make([]int, numCapturesInPattern*2)
+			re.matchData.indexes[i] = make([]int, numCapturesInPattern*2)
 		}
-		re.numCapturesInPattern = numCapturesInPattern
+		re.namedGroupInfo = re.getNamedGroupInfo()
 	}
 	return re, err
 }
@@ -132,20 +110,41 @@ func (re *Regexp) Free() {
 	}
 }
 
-func (re *Regexp) groupNameToId(name string) (id int) {
-	if re.namedCaptures == nil {
-		return ONIGERR_UNDEFINED_NAME_REFERENCE
+func (re *Regexp) getNamedGroupInfo() (namedGroup NamedGroupInfo) {
+	numNamedGroups := int(C.onig_number_of_names(re.regex))
+	//when any named capture exisits, there is no numbered capture even if there are unnamed captures
+	if numNamedGroups > 0 {
+		namedGroup = make(map[string]int)
+		//try to get the names
+		bufferSize := len(re.pattern)*2
+		nameBuffer := make([]byte, bufferSize)
+		groupNumbers := make([]int, numNamedGroups)
+		bufferPtr := unsafe.Pointer(&nameBuffer[0])
+		numbersPtr := unsafe.Pointer(&groupNumbers[0])
+		length := int(C.GetCaptureNames(re.regex, bufferPtr, (C.int)(bufferSize), (*C.int)(numbersPtr)))
+		if length > 0  {
+			namesAsBytes := bytes.Split(nameBuffer[:length], ([]byte)(";"))
+			if len(namesAsBytes) != numNamedGroups {
+				log.Fatalf("the number of named groups (%d) does not match the number names found (%d)\n", numNamedGroups, len(namesAsBytes))
+			}
+			for i, nameAsBytes := range(namesAsBytes) {
+				name := string(nameAsBytes)
+				namedGroup[name] = groupNumbers[i]
+			}
+		} else {
+			log.Fatalf("could not get the capture group names from %q", re.String())
+		}
 	}
+	return
+}
 
-	//note that the Id (or Reference number) of a named capture is never 0
-	if re.namedCaptures[name] == nil {
-		nameCharPtr := C.CString(name)
-		defer C.free(unsafe.Pointer(nameCharPtr))
-		id = int(C.LookupOnigCaptureByName(nameCharPtr, C.int(len(name)), re.regex, re.region))
-		re.namedCaptures[name] = &namedCapture{id:id}
-		return
+
+func (re *Regexp) groupNameToId(name string) (id int) {
+	if re.namedGroupInfo == nil {
+		id = ONIGERR_UNDEFINED_NAME_REFERENCE
+	} else {
+		id = re.namedGroupInfo[name]
 	}
-	id = re.namedCaptures[name].id
 	return
 }
 
@@ -154,7 +153,13 @@ func (re *Regexp) processMatch(numCaptures int) (match []int) {
 	if numCaptures <= 0 {
 		panic("cannot have 0 captures when processing a match")
 	}
-	return re.matches[re.matchIndex][:numCaptures*2]
+	matchData := re.matchData
+	return matchData.indexes[matchData.count][:numCaptures*2]
+}
+
+func (re *Regexp) ClearMatchData() {
+	matchData := re.matchData
+	matchData.count = 0
 }
 
 func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
@@ -162,8 +167,8 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-
-	capturesPtr := unsafe.Pointer(&(re.matches[re.matchIndex][0]))
+	matchData := re.matchData
+	capturesPtr := unsafe.Pointer(&(matchData.indexes[matchData.count][0]))
 	numCaptures := 0
 	numCapturesPtr := unsafe.Pointer(&numCaptures)
 	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr), (*C.int)(numCapturesPtr)))
@@ -171,12 +176,13 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 		if numCaptures <= 0 {
 			panic("cannot have 0 captures when processing a match")
 		}
-		match = re.matches[re.matchIndex][:numCaptures*2]
+		match = matchData.indexes[matchData.count][:numCaptures*2]
 	}
 	return
 }
 
 func (re *Regexp) match(b []byte, n int, offset int) bool {
+	re.ClearMatchData()
 	if n == 0 {
 		b = []byte{0}
 	}
@@ -186,27 +192,20 @@ func (re *Regexp) match(b []byte, n int, offset int) bool {
 }
 
 func (re *Regexp) findAll(b []byte, n int) (matches [][]int) {
+	re.ClearMatchData()
+	
 	if n < 0 {
 		n = len(b)
 	}
+	matchData := re.matchData
 	offset := 0
-	re.matchIndex = 0
 	for offset <= n {
-		if re.matchIndex >= len(re.matches) {
-			re.matches = append(re.matches, make([]int, re.numCapturesInPattern*2))
-			for _, value := range(re.namedCaptures) {
-				value.capture = append(value.capture, nil)
-			}
+		if matchData.count >= len(matchData.indexes) {
+			length := len(matchData.indexes[0])
+			matchData.indexes = append(matchData.indexes, make([]int, length))
 		}
 		if match := re.find(b, n, offset); len(match) > 0 {
-			if re.namedCaptures != nil {
-				for _, value := range(re.namedCaptures) {
-					beg := match[value.id*2]
-					end := match[value.id*2+1]
-					value.capture[re.matchIndex] = b[beg:end]
-				}
-			}
-			re.matchIndex += 1
+			matchData.count += 1
 			//move offset to the ending index of the current match and prepare to find the next non-overlapping match
 			offset = match[1]
 			//if match[0] == match[1], it means the current match does not advance the search. we need to exit the loop to avoid getting stuck here.
@@ -224,12 +223,12 @@ func (re *Regexp) findAll(b []byte, n int) (matches [][]int) {
 			break
 		}
 	}
-	matches = re.matches[:re.matchIndex]
+	matches = matchData.indexes[:matchData.count]
 	return
 }
 
 func (re *Regexp) FindIndex(b []byte) []int {
-	re.matchIndex = 0
+	re.ClearMatchData()
 	match := re.find(b, len(b), 0)
 	if len(match) == 0 {
 		return nil
@@ -299,7 +298,7 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 }
 
 func (re *Regexp) findSubmatchIndex(b []byte) (match []int) {
-	re.matchIndex = 0
+	re.ClearMatchData()
 	match = re.find(b, len(b), 0)
 	return
 }
@@ -424,7 +423,7 @@ func (re *Regexp) getNamedCapture(name []byte, capturedBytes [][]byte) []byte {
 
 func (re *Regexp) getNumberedCapture(num int, capturedBytes [][]byte) []byte {
 	//when named capture groups exist, numbered capture groups returns ""
-	if re.namedCaptures == nil && num <= (len(capturedBytes)-1) && num >= 0 {
+	if re.namedGroupInfo == nil && num <= (len(capturedBytes)-1) && num >= 0 {
 		return capturedBytes[num]
 	}
 	return ([]byte)("")
@@ -587,17 +586,6 @@ func (re *Regexp) Gsub(src, repl string) string {
 	replBytes := ([]byte)(repl)
 	replaced := re.replaceAll(srcBytes, replBytes, fillCapturedValues)
 	return string(replaced)
-}
-
-func (re *Regexp) GetAllNamedCaptures(index int) (namedCaptures map[string]string) {
-	if re.namedCaptures == nil || index >= re.matchIndex {
-		return nil
-	}
-	namedCaptures = make(map[string]string)
-	for name, value := range(re.namedCaptures) {
-		namedCaptures[name] = string(value.capture[index])
-	}
-	return
 }
 
 func (re *Regexp) GsubFunc(src string, replFunc func(*Regexp, []string) string) string {
