@@ -22,7 +22,7 @@ So, to build the project, just go to the root directory and type
 
 To install the package
 
-   gb -i
+   gb -im
 
 To run tests
 

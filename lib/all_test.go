@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"fmt"
 	"runtime"
 )
 
@@ -197,6 +196,7 @@ var replaceTests = []ReplaceTest{
 	{"[a-c]*", "x", "def", "xdxexfx"},
 	{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
 	{"[a-c]*", "x", "abcbcdcdedef", "xxdxxdxexdxexfx"},
+	{"(foo)*bar(s)", "\\1", "bars", ""},
 }
 
 type ReplaceFuncTest struct {
@@ -293,12 +293,6 @@ func TestGsubNamedCapture1(t *testing.T) {
 	if actual != expected {
 		t.Errorf("expected %q, actual %q\n", expected, actual)
 	}
-
-	namedCaptures := re.GetAllNamedCaptures()
-	if namedCaptures["foo"] != "a" || len(namedCaptures) != 1 {
-		t.Errorf("GetAllNamedCaptures returns unexpected result, %q != %q\n", namedCaptures["foo"], "a")
-	}
-	
 }
 
 /*
@@ -317,11 +311,6 @@ func TestGsubNamedCapture2(t *testing.T) {
 	if actual != expected {
 		t.Errorf("expected %q, actual %q\n", expected, actual)
 	}
-	namedCaptures := re.GetAllNamedCaptures()
-	if namedCaptures["foo"] != "a" || namedCaptures["bar"] != "o" || len(namedCaptures) != 2 {
-		t.Errorf("GetAllNamedCaptures returns unexpected result\n")
-	}
-
 }
 
 /*
@@ -343,6 +332,29 @@ func TestGsubNamedCapture3(t *testing.T) {
 }
 
 /*
+* "hallo".gsub(/h(?<foo>.*)(l*)(?<bar>.*)/, "\\k<foo>\\k<bar>\\k<foo>\\1")
+ */
+func TestGsubNamedCapture4(t *testing.T) {
+	input := "The lamb was sure to go."
+	pattern := "(?<word>[^\\s\\.]+)(?<white_space>\\s)"
+	expected := "They lamby wasy surey toy go."
+	re, err := Compile(pattern)
+	if err != nil {
+		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
+		return
+	}
+
+	actual := re.GsubFunc(input, func(re *Regexp, captures map[string]string) string {
+		return captures["word"]+"y"+captures["white_space"]
+	})
+	if actual != expected {
+		t.Errorf("expected %q, actual %q\n", expected, actual)
+	}
+	
+}
+
+
+/*
 * "hallo".gsub(/h(.*)llo/) { |match|
 *    "e"
 * }
@@ -356,7 +368,7 @@ func TestGsubFunc1(t *testing.T) {
 		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
 		return
 	}
-	actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
+	actual := re.GsubFunc(input, func(re *Regexp, captures map[string]string) string {
 		return "e"
 	})
 	if actual != expected {
@@ -385,12 +397,12 @@ func TestGsubFunc2(t *testing.T) {
 		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
 		return
 	}
-	actual := re.GsubFunc(input, func(re *Regexp, captures []string) string {
-		for index, capture := range captures {
-			env[fmt.Sprintf("%d", index)] = capture
+	actual := re.GsubFunc(input, func(re *Regexp, captures map[string]string) string {
+		for name, capture := range captures {
+			env[name] = capture
 		}
 		re1 := MustCompile("(d)")
-		return re1.GsubFunc("abcd", func(re1 *Regexp, captures2 []string) string {
+		return re1.GsubFunc("abcd", func(re1 *Regexp, captures2 map[string]string) string {
 			return env["1"]
 		})
 	})

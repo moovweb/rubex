@@ -67,11 +67,9 @@ int SearchOnigRegex( void *str, int str_length, int offset, int option,
         int i;
 		int count = 0;
         for (i = 0; i < region->num_regs; i++) {
-			if (region->beg[i] >= 0 && region->end[i] >= region->beg[i]) {
-				captures[2*count] = region->beg[i];
-				captures[2*count+1] = region->end[i];
-				count ++;
-			}
+			captures[2*count] = region->beg[i];
+			captures[2*count+1] = region->end[i];
+			count ++;
         }
 		*numCaptures = count;
     }
