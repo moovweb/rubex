@@ -196,6 +196,7 @@ var replaceTests = []ReplaceTest{
 	{"[a-c]*", "x", "def", "xdxexfx"},
 	{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
 	{"[a-c]*", "x", "abcbcdcdedef", "xxdxxdxexdxexfx"},
+	{"(foo)*bar(s)", "\\1", "bars", ""},
 }
 
 type ReplaceFuncTest struct {

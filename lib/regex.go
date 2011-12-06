@@ -178,8 +178,19 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 			panic("cannot have 0 captures when processing a match")
 		}
 		match = matchData.indexes[matchData.count][:numCaptures*2]
+		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
+		if numCapturesInPattern != numCaptures {
+			log.Fatalf("expected %d captures but got %d\n", numCapturesInPattern, numCaptures)
+		}
 	}
 	return
+}
+
+func getCapture(b []byte, beg int, end int) []byte {
+	if beg < 0 || end < 0 {
+		return nil
+	}
+	return b[beg:end]
 }
 
 func (re *Regexp) match(b []byte, n int, offset int) bool {
@@ -242,7 +253,7 @@ func (re *Regexp) Find(b []byte) []byte {
 	if loc == nil {
 		return nil
 	}
-	return b[loc[0]:loc[1]]
+	return getCapture(b, loc[0], loc[1])
 }
 
 func (re *Regexp) FindString(s string) string {
@@ -274,7 +285,7 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 	}
 	matchBytes := make([][]byte, 0, len(matches))
 	for _, match := range matches {
-		matchBytes = append(matchBytes, b[match[0]:match[1]])
+		matchBytes = append(matchBytes, getCapture(b, match[0], match[1]))
 	}
 	return matchBytes
 }
@@ -287,7 +298,12 @@ func (re *Regexp) FindAllString(s string, n int) []string {
 	}
 	matchStrings := make([]string, 0, len(matches))
 	for _, match := range matches {
-		matchStrings = append(matchStrings, string(b[match[0]:match[1]]))
+		m := getCapture(b, match[0], match[1])
+		if m == nil {
+			matchStrings = append(matchStrings, "")
+		} else {
+			matchStrings = append(matchStrings, string(m))
+		}
 	}
 	return matchStrings
 
@@ -323,7 +339,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 	}
 	results := make([][]byte, 0, length)
 	for i := 0; i < length; i ++ {
-		results = append(results, b[match[2*i]:match[2*i+1]])
+		results = append(results, getCapture(b, match[2*i], match[2*i+1]))
 	}
 	return results
 }
@@ -341,7 +357,12 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
 
 	results := make([]string, 0, length)
 	for i := 0; i < length; i ++ {
-		results = append(results, string(b[match[2*i]:match[2*i+1]]))
+		cap := getCapture(b, match[2*i], match[2*i+1])
+		if cap == nil {
+			results = append(results, "")
+		} else {
+			results = append(results, string(cap))
+		}
 	}
 	return results
 }
@@ -369,7 +390,7 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
 		length := len(match)/2
 		capturedBytes := make([][]byte, 0, length)
 		for i := 0; i < length; i++ {
-			capturedBytes = append(capturedBytes, b[match[2*i]:match[2*i+1]])
+			capturedBytes = append(capturedBytes, getCapture(b, match[2*i], match[2*i+1]))
 		}
 		allCapturedBytes = append(allCapturedBytes, capturedBytes)
 	}
@@ -388,7 +409,12 @@ func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 		length := len(match)/2
 		capturedStrings := make([]string, 0, length)
 		for i := 0; i < length; i++ {
-			capturedStrings = append(capturedStrings, string(b[match[2*i]:match[2*i+1]]))
+			cap := getCapture(b, match[2*i], match[2*i+1])
+			if cap == nil {
+				capturedStrings = append(capturedStrings, "")
+			} else {
+				capturedStrings = append(capturedStrings, string(cap))
+			}
 		}
 		allCapturedStrings = append(allCapturedStrings, capturedStrings)
 	}
@@ -479,11 +505,11 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func(*Regexp, []byte, ma
 		capturedBytes := make(map[string][]byte)
 		if re.namedGroupInfo == nil {
 			for i := 0; i < length; i ++ {
-				capturedBytes[strconv.Itoa(i)] = src[match[2*i]:match[2*i+1]]
+				capturedBytes[strconv.Itoa(i)] = getCapture(src, match[2*i], match[2*i+1])
 			}
 		} else {
 			for name, i := range(re.namedGroupInfo) {
-				capturedBytes[name] = src[match[2*i]:match[2*i+1]]
+				capturedBytes[name] = getCapture(src, match[2*i], match[2*i+1])
 			}
 		}
 		newRepl := replFunc(re, repl, capturedBytes)
