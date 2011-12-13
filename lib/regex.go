@@ -456,7 +456,7 @@ func (re *Regexp) getNumberedCapture(num int, capturedBytes [][]byte) []byte {
 	return ([]byte)("")
 }
 
-func fillCapturedValues(re *Regexp, repl []byte, capturedBytes map[string][]byte) []byte {
+func fillCapturedValues(repl []byte, _ []byte, capturedBytes map[string][]byte) []byte {
 	replLen := len(repl)
 	newRepl := make([]byte, 0, replLen*3)
 	inEscapeMode := false
@@ -494,7 +494,7 @@ func fillCapturedValues(re *Regexp, repl []byte, capturedBytes map[string][]byte
 	return newRepl
 }
 
-func (re *Regexp) replaceAll(src, repl []byte, replFunc func(*Regexp, []byte, map[string][]byte) []byte) []byte {
+func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, []byte, map[string][]byte) []byte) []byte {
 	matches := re.findAll(src, len(src))
 	if len(matches) == 0 {
 		return src
@@ -512,7 +512,8 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func(*Regexp, []byte, ma
 				capturedBytes[name] = getCapture(src, match[2*i], match[2*i+1])
 			}
 		}
-		newRepl := replFunc(re, repl, capturedBytes)
+		matchBytes := getCapture(src, match[0], match[1])
+		newRepl := replFunc(repl, matchBytes, capturedBytes)
 		prevEnd := 0
 		if i > 0 {
 			prevMatch := matches[i-1][:2]
@@ -537,8 +538,8 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 }
 
 func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
-	return re.replaceAll(src, []byte(""), func(_ *Regexp, _ []byte, capturedBytes map[string][]byte) []byte {
-		return repl(capturedBytes["0"])
+	return re.replaceAll(src, []byte(""), func(_ []byte, matchBytes []byte, _ map[string][]byte) []byte {
+		return repl(matchBytes)
 	})
 }
 
@@ -548,8 +549,8 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 
 func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
 	srcB := []byte(src)
-	destB := re.replaceAll(srcB, []byte(""), func(_ *Regexp, _ []byte, capturedBytes map[string][]byte) []byte {
-		return []byte(repl(string(capturedBytes["0"])))
+	destB := re.replaceAll(srcB, []byte(""), func(_ []byte, matchBytes []byte, _ map[string][]byte) []byte {
+		return []byte(repl(string(matchBytes)))
 	})
 	return string(destB)
 }
@@ -622,14 +623,15 @@ func (re *Regexp) Gsub(src, repl string) string {
 	return string(replaced)
 }
 
-func (re *Regexp) GsubFunc(src string, replFunc func(*Regexp, map[string]string) string) string {
+func (re *Regexp) GsubFunc(src string, replFunc func(string, map[string]string) string) string {
 	srcBytes := ([]byte)(src)
-	replaced := re.replaceAll(srcBytes, nil, func(re *Regexp, _ []byte, capturedBytes map[string][]byte) []byte {
+	replaced := re.replaceAll(srcBytes, nil, func(_ []byte, matchBytes []byte, capturedBytes map[string][]byte) []byte {
 		capturedStrings := make(map[string]string)
 		for name, capBytes := range(capturedBytes) {
 			capturedStrings[name] = string(capBytes)
 		}
-		return ([]byte)(replFunc(re, capturedStrings))
+		matchString := string(matchBytes)
+		return ([]byte)(replFunc(matchString, capturedStrings))
 	})
 	return string(replaced)
 }

@@ -344,7 +344,7 @@ func TestGsubNamedCapture4(t *testing.T) {
 		return
 	}
 
-	actual := re.GsubFunc(input, func(re *Regexp, captures map[string]string) string {
+	actual := re.GsubFunc(input, func(_ string, captures map[string]string) string {
 		return captures["word"]+"y"+captures["white_space"]
 	})
 	if actual != expected {
@@ -368,7 +368,7 @@ func TestGsubFunc1(t *testing.T) {
 		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
 		return
 	}
-	actual := re.GsubFunc(input, func(re *Regexp, captures map[string]string) string {
+	actual := re.GsubFunc(input, func(match string, captures map[string]string) string {
 		return "e"
 	})
 	if actual != expected {
@@ -397,12 +397,12 @@ func TestGsubFunc2(t *testing.T) {
 		t.Errorf("Unexpected error compiling %q: %v", pattern, err)
 		return
 	}
-	actual := re.GsubFunc(input, func(re *Regexp, captures map[string]string) string {
+	actual := re.GsubFunc(input, func(_ string, captures map[string]string) string {
 		for name, capture := range captures {
 			env[name] = capture
 		}
 		re1 := MustCompile("(d)")
-		return re1.GsubFunc("abcd", func(re1 *Regexp, captures2 map[string]string) string {
+		return re1.GsubFunc("abcd", func(_ string, captures2 map[string]string) string {
 			return env["1"]
 		})
 	})
