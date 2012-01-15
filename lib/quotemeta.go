@@ -7,7 +7,7 @@
 
 package rubex
 
-func special(c int) bool {
+func special(c rune) bool {
 	for _, r := range `\.+*?()|[]^$` {
 		if c == r {
 			return true
@@ -25,7 +25,7 @@ func QuoteMeta(s string) string {
 	// A byte loop is correct because all metacharacters are ASCII.
 	j := 0
 	for i := 0; i < len(s); i++ {
-		if special(int(s[i])) {
+		if special(rune(s[i])) {
 			b[j] = '\\'
 			j++
 		}

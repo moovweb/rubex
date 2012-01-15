@@ -11,11 +11,11 @@ import (
 	"unsafe"
 	"strconv"
 	"fmt"
-	"os"
+	"errors"
 	"io"
 	"bytes"
 	"log"
-	"utf8"
+	"unicode/utf8"
 	"sync"
 )
 
@@ -44,7 +44,7 @@ type Regexp struct {
 	namedGroupInfo   NamedGroupInfo
 }
 
-func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
+func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 	re = &Regexp{pattern: pattern}
 	patternCharPtr := C.CString(pattern)
 	defer C.free(unsafe.Pointer(patternCharPtr))
@@ -53,7 +53,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 	defer mutex.Unlock()
 	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
-		err = os.NewError(C.GoString(re.errorBuf))
+		err = errors.New(C.GoString(re.errorBuf))
 	} else {
 		err = nil
 		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
@@ -67,26 +67,26 @@ func NewRegexp(pattern string, option int) (re *Regexp, err os.Error) {
 	return re, err
 }
 
-func Compile(str string) (*Regexp, os.Error) {
+func Compile(str string) (*Regexp, error) {
 	return NewRegexp(str, ONIG_OPTION_DEFAULT)
 }
 
 func MustCompile(str string) *Regexp {
 	regexp, error := NewRegexp(str, ONIG_OPTION_DEFAULT)
 	if error != nil {
-		panic("regexp: compiling " + str + ": " + error.String())
+		panic("regexp: compiling " + str + ": " + error.Error())
 	}
 	return regexp
 }
 
-func CompileWithOption(str string, option int) (*Regexp, os.Error) {
+func CompileWithOption(str string, option int) (*Regexp, error) {
 	return NewRegexp(str, option)
 }
 
 func MustCompileWithOption(str string, option int) *Regexp {
 	regexp, error := NewRegexp(str, option)
 	if error != nil {
-		panic("regexp: compiling " + str + ": " + error.String())
+		panic("regexp: compiling " + str + ": " + error.Error())
 	}
 	return regexp
 }
@@ -571,7 +571,7 @@ func grow_buffer(b []byte, offset int, n int) []byte {
 func fromReader(r io.RuneReader) []byte {
 	b := make([]byte, numReadBufferStartSize)
 	offset := 0
-	var err os.Error = nil
+	var err error = nil
 	for err == nil {
 		rune, runeWidth, err := r.ReadRune()
 		if err == nil {
@@ -608,7 +608,7 @@ func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
 	return "", false
 }
 
-func MatchString(pattern string, s string) (matched bool, error os.Error) {
+func MatchString(pattern string, s string) (matched bool, error error) {
 	re, err := Compile(pattern)
 	if err != nil {
 		return false, err
