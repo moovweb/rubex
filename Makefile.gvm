@@ -1,0 +1,8 @@
+all: install
+build:
+	cd lib && make
+clean:
+	cd lib && make clean
+install: build
+	gb -i
+
