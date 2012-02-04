@@ -35,3 +35,4 @@ To clean up
 To run benchmarks
 
    cd lib; gotest -test.bench="."
+ 
