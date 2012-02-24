@@ -224,7 +224,7 @@ func (re *Regexp) findAll(b []byte, n int) (matches [][]int) {
 			offset = match[1]
 			//if match[0] == match[1], it means the current match does not advance the search. we need to exit the loop to avoid getting stuck here.
 			if match[0] == match[1] {
-				if offset < n {
+				if offset < n && offset >= 0 {
 					//there are more bytes, so move offset by a word
 					_, width := utf8.DecodeRune(b[offset:])
 					offset += width
@@ -497,21 +497,22 @@ func fillCapturedValues(repl []byte, _ []byte, capturedBytes map[string][]byte) 
 }
 
 func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, []byte, map[string][]byte) []byte) []byte {
-	matches := re.findAll(src, len(src))
+	srcLen := len(src)
+	matches := re.findAll(src, srcLen)
 	if len(matches) == 0 {
 		return src
 	}
-	dest := make([]byte, 0, len(src))
+	dest := make([]byte, 0, srcLen)
 	for i, match := range matches {
 		length := len(match)/2
 		capturedBytes := make(map[string][]byte)
 		if re.namedGroupInfo == nil {
-			for i := 0; i < length; i ++ {
-				capturedBytes[strconv.Itoa(i)] = getCapture(src, match[2*i], match[2*i+1])
+			for j := 0; j < length; j ++ {
+				capturedBytes[strconv.Itoa(j)] = getCapture(src, match[2*j], match[2*j+1])
 			}
 		} else {
-			for name, i := range(re.namedGroupInfo) {
-				capturedBytes[name] = getCapture(src, match[2*i], match[2*i+1])
+			for name, j := range(re.namedGroupInfo) {
+				capturedBytes[name] = getCapture(src, match[2*j], match[2*j+1])
 			}
 		}
 		matchBytes := getCapture(src, match[0], match[1])
@@ -521,16 +522,14 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, []byte, map
 			prevMatch := matches[i-1][:2]
 			prevEnd = prevMatch[1]
 		}
-		if match[0] > prevEnd {
+		if match[0] > prevEnd && prevEnd >= 0 && match[0] <= srcLen {
 			dest = append(dest, src[prevEnd:match[0]]...)
 		}
 		dest = append(dest, newRepl...)
 	}
 	lastEnd := matches[len(matches)-1][1]
-	if lastEnd < len(src) {
-		if lastEnd < len(src) {
-			dest = append(dest, src[lastEnd:]...)
-		}
+	if lastEnd < srcLen && lastEnd >= 0 {
+		dest = append(dest, src[lastEnd:]...)
 	}
 	return dest
 }
