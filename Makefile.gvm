@@ -5,4 +5,5 @@ clean:
 	cd lib && make clean
 install: build
 	cd lib && gb -i
-
+test:
+	cd lib && gb -t
