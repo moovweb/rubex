@@ -6,4 +6,4 @@ clean:
 install: build
 	cd lib && gb -i
 test:
-	cd lib && gb -t
+	cd lib && make test
