@@ -193,6 +193,30 @@ func TestFindStringIndex(t *testing.T) {
 	}
 }
 
+func TestFindStringContentType(t *testing.T) {
+	pattern := `text/(.*);\s*charset\s*=\s*(.*)`
+	regex := MustCompile(pattern)
+	
+	data1 := "text/html; charset=utf8"
+	data2 := "text/;charset=iso-8859-1"
+	data3 := "image/png"
+	matches := regex.FindStringSubmatch(data1)
+	if matches[1] != "html" || matches[2] != "utf8" {
+		t.Errorf("does not match content-type 1")
+	}
+	matches = regex.FindStringSubmatch(data2)
+	if matches[1] != "" || matches[2] != "iso-8859-1" {
+		println(matches[1])
+		println(matches[2])
+		t.Errorf("does not match content-type 2")
+	}
+	matches = regex.FindStringSubmatch(data3)
+	if len(matches) != 0 {
+		t.Errorf("does not match content-type 3")
+	}
+}
+
+
 func TestFindReaderIndex(t *testing.T) {
 	for _, test := range findTests {
 		testFindIndex(&test, MustCompile(test.pat).FindReaderIndex(strings.NewReader(test.text)), t)
