@@ -5,10 +5,10 @@
 package rubex
 
 import (
-	"os"
+	"errors"
+	"runtime"
 	"strings"
 	"testing"
-	"runtime"
 )
 
 var good_re = []string{
@@ -34,20 +34,20 @@ var good_re = []string{
 
 type stringError struct {
 	re  string
-	err os.Error
+	err error
 }
 
 var bad_re = []stringError{
-	{`*`, os.NewError("target of repeat operator is not specified")},
-	{`+`, os.NewError("target of repeat operator is not specified")},
-	{`?`, os.NewError("target of repeat operator is not specified")},
-	{`(abc`, os.NewError("end pattern with unmatched parenthesis")},
-	{`abc)`, os.NewError("unmatched close parenthesis")},
-	{`x[a-z`, os.NewError("premature end of char-class")},
+	{`*`, errors.New("target of repeat operator is not specified")},
+	{`+`, errors.New("target of repeat operator is not specified")},
+	{`?`, errors.New("target of repeat operator is not specified")},
+	{`(abc`, errors.New("end pattern with unmatched parenthesis")},
+	{`abc)`, errors.New("unmatched close parenthesis")},
+	{`x[a-z`, errors.New("premature end of char-class")},
 	//{`abc]`, Err}, //this is not considered as bad by ruby/javascript regex; nor are the following commented out regex patterns
-	{`abc[`, os.NewError("premature end of char-class")},
-	{`[z-a]`, os.NewError("empty range in char class")},
-	{`abc\`, os.NewError("end pattern at escape")},
+	{`abc[`, errors.New("premature end of char-class")},
+	{`[z-a]`, errors.New("empty range in char class")},
+	{`abc\`, errors.New("end pattern at escape")},
 	//{`a**`, Err},
 	//{`a*+`, Err},
 	//{`a??`, Err},
@@ -55,24 +55,24 @@ var bad_re = []stringError{
 }
 
 func runParallel(testFunc func(chan bool), concurrency int) {
-    runtime.GOMAXPROCS(4)
-    done := make(chan bool, concurrency)
-    for i := 0; i < concurrency; i++ {
-        go testFunc(done)
-    }
-    for i := 0; i < concurrency; i++ {
-        <-done
-        <-done
-    }
-    runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(4)
+	done := make(chan bool, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go testFunc(done)
+	}
+	for i := 0; i < concurrency; i++ {
+		<-done
+		<-done
+	}
+	runtime.GOMAXPROCS(1)
 }
 
 const numConcurrentRuns = 200
 
-func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+func compileTest(t *testing.T, expr string, error error) *Regexp {
 	re, err := Compile(expr)
-	if (error == nil && err != error) || (error != nil && err.String() != error.String()) {
-		t.Error("compiling `", expr, "`; unexpected error: ", err.String())
+	if (error == nil && err != error) || (error != nil && err.Error() != error.Error()) {
+		t.Error("compiling `", expr, "`; unexpected error: ", err.Error())
 	}
 	return re
 }
@@ -84,8 +84,8 @@ func TestGoodCompile(t *testing.T) {
 			compileTest(t, good_re[i], nil)
 		}
 		done <- true
-    }
-    runParallel(testFunc, numConcurrentRuns)		
+	}
+	runParallel(testFunc, numConcurrentRuns)
 }
 
 func TestBadCompile(t *testing.T) {
@@ -345,14 +345,13 @@ func TestGsubNamedCapture4(t *testing.T) {
 	}
 
 	actual := re.GsubFunc(input, func(_ string, captures map[string]string) string {
-		return captures["word"]+"y"+captures["white_space"]
+		return captures["word"] + "y" + captures["white_space"]
 	})
 	if actual != expected {
 		t.Errorf("expected %q, actual %q\n", expected, actual)
 	}
-	
-}
 
+}
 
 /*
 * "hallo".gsub(/h(.*)llo/) { |match|
