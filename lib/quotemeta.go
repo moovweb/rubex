@@ -9,7 +9,7 @@ package rubex
 
 func special(c int) bool {
 	for _, r := range `\.+*?()|[]^$` {
-		if c == r {
+		if c == int(r) {
 			return true
 		}
 	}
