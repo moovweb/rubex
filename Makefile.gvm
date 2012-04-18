@@ -4,6 +4,6 @@ build:
 clean:
 	gb -c
 install: build
-	cd lib && gb -i
+	gb -i
 test:
-	cd lib && make test
+	cd lib && go test -v
