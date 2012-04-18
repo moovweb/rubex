@@ -1,8 +1,8 @@
 all: install
 build:
-	cd lib && make
+	gb -b
 clean:
-	cd lib && make clean
+	gb -c
 install: build
 	cd lib && gb -i
 test:
