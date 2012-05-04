@@ -1,9 +1,0 @@
-all: install
-build:
-	gb -b
-clean:
-	gb -c
-install: build
-	gb -i
-test:
-	cd lib && go test -v
