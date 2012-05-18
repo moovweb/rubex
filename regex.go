@@ -19,6 +19,8 @@ import (
 	"sync"
 	"unicode/utf8"
 	"unsafe"
+
+	"time"
 )
 
 type strRange []int
@@ -73,11 +75,23 @@ func Compile(str string) (*Regexp, error) {
 	return NewRegexp(str, ONIG_OPTION_DEFAULT)
 }
 
+var (
+	MustCompileCount int64
+	MustCompileTime int64
+)
+
 func MustCompile(str string) *Regexp {
+
+	startTime := time.Now().UnixNano()
+	MustCompileCount++
+
 	regexp, error := NewRegexp(str, ONIG_OPTION_DEFAULT)
 	if error != nil {
 		panic("regexp: compiling " + str + ": " + error.Error())
 	}
+
+	MustCompileTime += time.Now().UnixNano() - startTime
+
 	return regexp
 }
 
