@@ -49,6 +49,10 @@ type Regexp struct {
 }
 
 func NewRegexp(pattern string, option int) (re *Regexp, err error) {
+
+	startTime := time.Now().UnixNano()
+	NewRegexpCount++
+	
 	re = &Regexp{pattern: pattern}
 	patternCharPtr := C.CString(pattern)
 	defer C.free(unsafe.Pointer(patternCharPtr))
@@ -68,6 +72,9 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 		}
 		re.namedGroupInfo = re.getNamedGroupInfo()
 	}
+
+	NewRegexpTime += time.Now().UnixNano() - startTime
+
 	return re, err
 }
 
@@ -76,21 +83,17 @@ func Compile(str string) (*Regexp, error) {
 }
 
 var (
-	MustCompileCount int64
-	MustCompileTime int64
+	NewRegexpCount int64
+	NewRegexpTime int64
+	FreeCount int64
+	FreeTime int64
 )
 
 func MustCompile(str string) *Regexp {
-
-	startTime := time.Now().UnixNano()
-	MustCompileCount++
-
 	regexp, error := NewRegexp(str, ONIG_OPTION_DEFAULT)
 	if error != nil {
 		panic("regexp: compiling " + str + ": " + error.Error())
 	}
-
-	MustCompileTime += time.Now().UnixNano() - startTime
 
 	return regexp
 }
@@ -108,6 +111,9 @@ func MustCompileWithOption(str string, option int) *Regexp {
 }
 
 func (re *Regexp) Free() {
+	startTime := time.Now().UnixNano()
+	FreeCount++
+
 	mutex.Lock()
 	if re.regex != nil {
 		C.onig_free(re.regex)
@@ -125,6 +131,9 @@ func (re *Regexp) Free() {
 		C.free(unsafe.Pointer(re.errorBuf))
 		re.errorBuf = nil
 	}
+
+	FreeTime += time.Now().UnixNano() - startTime
+
 }
 
 func (re *Regexp) getNamedGroupInfo() (namedGroupInfo NamedGroupInfo) {
