@@ -14,62 +14,90 @@ import "runtime"
 import "os"
 import "strconv"
 
-var re1 []*regexp.Regexp
-var re2 []*re.Regexp
+var re1 []Matcher
+var re2 []Matcher
 const NUM = 100
+const NNN = 1000
 var STR = "abcdabc"
 
+type Matcher interface {
+	MatchString(string) bool
+}
+
+type Task struct {
+	str string
+	m Matcher
+}
+
+var TaskChann chan *Task
+
 func init() {
-	re1 = make([]*regexp.Regexp, NUM)
-	re2 = make([]*re.Regexp, NUM)
+	re1 = make([]Matcher, NUM)
+	re2 = make([]Matcher, NUM)
 	for i := 0; i < NUM; i ++ {
 		re1[i] = regexp.MustCompile("[a-c]*$")
 		re2[i] = re.MustCompile("[a-c]*$")
 	}
+	TaskChann = make(chan *Task, 100)
 	for i := 0; i < 10; i ++ {
 		STR += STR
 	}
 	println("len:", len(STR))
 }
 
-func rubex_page(index int) {
-	for i := 0; i < 100; i++ {
-		r := re2[index]
-		r.MatchString(STR)
-	}
-}
-
-func regexp_page(index int) {
-	for i := 0; i < 100; i++ {
-		r := re1[index]
-		r.MatchString(STR)
-	}
-}
-
-func render_pages(name string, fp  func(int), num_routines, num_renders int) {
+func render_pages(name string, marray []Matcher, num_routines, num_renders int) {
 	for i := 0; i < num_routines; i++ {
+		m := marray[i]
 		go func () {
-			t := time.Now()
+			runtime.LockOSThread()
 			for j := 0; j < num_renders; j++ {
-				fp(i)	
+				t := time.Now()
+				for i := 0; i < NNN; i++ {
+        			        m.MatchString(STR)
+			        }
+				println(name + "-average: ",  time.Since(t).Nanoseconds()/int64(1000*NNN), "us")
 			}
-			println(name + "-average: ",  time.Since(t).Nanoseconds()/int64(num_renders*1000000), "ms")
 		}()
 	}
 }
+
+func render_pages2(name string, marray []Matcher, num_routines, num_renders int) {
+	go func() {
+		for i := 0; i < 100000; i ++ {
+			t := &Task{str: STR, m: marray[0]}
+			TaskChann <- t
+		}
+	}()
+	for i := 0; i < num_routines; i++ {
+		m := marray[i]
+		go func () {
+			runtime.LockOSThread()
+			for j := 0; j < num_renders; j++ {
+				t := time.Now()
+				for i := 0; i < NNN; i++ {
+					task := <- TaskChann
+         				m.MatchString(task.str)
+        			}
+				println(name + "-average: ",  time.Since(t).Nanoseconds()/int64(1000*NNN), "us")
+			}
+		}()
+	}
+}
+
+
 
 func main() {
 	cpu, _ := strconv.Atoi(os.Args[1])
 	lib := os.Args[2]
 	println("using CPUs:", cpu)
 	runtime.GOMAXPROCS(cpu)
-	num_routines := 90
+	num_routines := 2
 	num_renders := 20
 	
 	if lib == "rubex" {
-		render_pages("rubex", rubex_page, num_routines, num_renders)
+		render_pages2("rubex", re2, num_routines, num_renders)
 	} else {
-		render_pages("regexp", regexp_page, num_routines, num_renders)
+		render_pages2("regexp", re1, num_routines, num_renders)
 	}
 
 	d, _ := time.ParseDuration("5s")
