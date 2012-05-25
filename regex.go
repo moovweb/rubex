@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"runtime"
 	"strconv"
 	"sync"
 	"unicode/utf8"
@@ -65,6 +66,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 			re.matchData.indexes[i] = make([]int, numCapturesInPattern*2)
 		}
 		re.namedGroupInfo = re.getNamedGroupInfo()
+		runtime.SetFinalizer(re, (*Regexp).Free)
 	}
 	return re, err
 }
@@ -101,6 +103,7 @@ func (re *Regexp) Free() {
 	}
 	if re.region != nil {
 		C.onig_region_free(re.region, 1)
+		re.region = nil
 	}
 	mutex.Unlock()
 	if re.errorInfo != nil {
@@ -505,11 +508,11 @@ func (re *Regexp) replaceAll(src, repl []byte, replFunc func([]byte, []byte, map
 		length := len(match) / 2
 		capturedBytes := make(map[string][]byte)
 		if re.namedGroupInfo == nil {
-			for j := 0; j < length; j ++ {
+			for j := 0; j < length; j++ {
 				capturedBytes[strconv.Itoa(j)] = getCapture(src, match[2*j], match[2*j+1])
 			}
 		} else {
-			for name, j := range(re.namedGroupInfo) {
+			for name, j := range re.namedGroupInfo {
 				capturedBytes[name] = getCapture(src, match[2*j], match[2*j+1])
 			}
 		}
