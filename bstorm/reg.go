@@ -22,7 +22,7 @@ func rubex_page() {
 
 func regexp_page() {
 	for i := 0; i < 100; i++ {
-		r := regexp.MustCompile("[a-c]*$")
+		r := regexp.MustCompilePOSIX("[a-c]*$")
 		r.MatchString("abcdabc")
 		//r.Free()
 	}
@@ -45,8 +45,8 @@ func main() {
 	num_routines := 40
 	num_renders := 100
 	
-	render_pages("rubex", rubex_page, num_routines, num_renders)
-//	render_pages("regexp", regexp_page, num_routines, num_renders)
+//	render_pages("rubex", rubex_page, num_routines, num_renders)
+	render_pages("regexp", regexp_page, num_routines, num_renders)
 
 	d, _ := time.ParseDuration("5m")
 	time.Sleep(d)
