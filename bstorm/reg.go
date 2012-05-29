@@ -27,6 +27,7 @@ type Matcher interface {
 type Task struct {
 	str string
 	m Matcher
+	t time.Time
 }
 
 var TaskChann chan *Task
@@ -51,11 +52,13 @@ func render_pages(name string, marray []Matcher, num_routines, num_renders int) 
 		go func () {
 			runtime.LockOSThread()
 			for j := 0; j < num_renders; j++ {
-				t := time.Now()
+				var totalDuration int64 = 0
 				for i := 0; i < NNN; i++ {
-        			        m.MatchString(STR)
-			        }
-				println(name + "-average: ",  time.Since(t).Nanoseconds()/int64(1000*NNN), "us")
+					t := time.Now()
+					m.MatchString(STR)
+					totalDuration += time.Since(t).Nanoseconds()
+				}
+				println(name + "-average: ",  totalDuration/int64(1000*NNN), "us")
 			}
 		}()
 	}
@@ -64,7 +67,7 @@ func render_pages(name string, marray []Matcher, num_routines, num_renders int) 
 func render_pages2(name string, marray []Matcher, num_routines, num_renders int) {
 	go func() {
 		for i := 0; i < 100000; i ++ {
-			t := &Task{str: STR, m: marray[0]}
+			t := &Task{str: STR, m: marray[0], t: time.Now()}
 			TaskChann <- t
 		}
 	}()
@@ -73,12 +76,13 @@ func render_pages2(name string, marray []Matcher, num_routines, num_renders int)
 		go func () {
 			runtime.LockOSThread()
 			for j := 0; j < num_renders; j++ {
-				t := time.Now()
+				var totalDuration int64 = 0
 				for i := 0; i < NNN; i++ {
-					task := <- TaskChann
-         				m.MatchString(task.str)
-        			}
-				println(name + "-average: ",  time.Since(t).Nanoseconds()/int64(1000*NNN), "us")
+					task := <-TaskChann
+					m.MatchString(task.str)
+					totalDuration += time.Since(task.t).Nanoseconds()
+				}
+				println(name + "-average: ",  totalDuration/int64(1000*NNN), "us")
 			}
 		}()
 	}
