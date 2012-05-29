@@ -13,11 +13,15 @@ import "regexp"
 import "runtime"
 import "os"
 import "strconv"
+import "sync"
 
+var mu sync.Mutex
+var count = 0
 var re1 []Matcher
 var re2 []Matcher
 const NUM = 100
 const NNN = 1000
+const CCC = 100000
 var STR = "abcdabc"
 
 type Matcher interface {
@@ -55,7 +59,14 @@ func render_pages(name string, marray []Matcher, num_routines, num_renders int) 
 				var totalDuration int64 = 0
 				for i := 0; i < NNN; i++ {
 					t := time.Now()
+					mu.Lock()
+					if count > CCC {
+						mu.Unlock()
+						return
+					}
+					count += 1
 					m.MatchString(STR)
+					mu.Unlock()
 					totalDuration += time.Since(t).Nanoseconds()
 				}
 				println(name + "-average: ",  totalDuration/int64(1000*NNN), "us")
@@ -66,7 +77,7 @@ func render_pages(name string, marray []Matcher, num_routines, num_renders int) 
 
 func render_pages2(name string, marray []Matcher, num_routines, num_renders int) {
 	go func() {
-		for i := 0; i < 100000; i ++ {
+		for i := 0; i < CCC; i ++ {
 			t := &Task{str: STR, m: marray[0], t: time.Now()}
 			TaskChann <- t
 		}
@@ -93,17 +104,26 @@ func render_pages2(name string, marray []Matcher, num_routines, num_renders int)
 func main() {
 	cpu, _ := strconv.Atoi(os.Args[1])
 	lib := os.Args[2]
+	method := os.Args[3]
 	println("using CPUs:", cpu)
 	runtime.GOMAXPROCS(cpu)
-	num_routines := 2
+	num_routines := 6
 	num_renders := 20
-	
+
+	if method == "chan" {	
 	if lib == "rubex" {
 		render_pages2("rubex", re2, num_routines, num_renders)
 	} else {
 		render_pages2("regexp", re1, num_routines, num_renders)
 	}
+	} else {
+	if lib == "rubex" {
+		render_pages("rubex", re2, num_routines, num_renders)
+	} else {
+		render_pages("regexp", re1, num_routines, num_renders)
+	}
 
+	}
 	d, _ := time.ParseDuration("5s")
 	for i := 0; i < 100; i ++ {
 		println("goroutine:", runtime.NumGoroutine())
