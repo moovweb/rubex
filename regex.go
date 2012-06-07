@@ -40,7 +40,6 @@ type Regexp struct {
 	pattern        string
 	regex          C.OnigRegex
 	region         *C.OnigRegion
-	encoding       C.OnigEncoding
 	errorInfo      *C.OnigErrorInfo
 	errorBuf       *C.char
 	matchData      *MatchData
@@ -54,7 +53,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 
 	mutex.Lock()
 	defer mutex.Unlock()
-	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.encoding, &re.errorInfo, &re.errorBuf)
+	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
 		err = errors.New(C.GoString(re.errorBuf))
 	} else {
