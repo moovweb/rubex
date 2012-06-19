@@ -17,7 +17,7 @@ import (
 	"log"
 	"runtime"
 	"strconv"
-	"sync"
+	// "sync"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -27,7 +27,7 @@ type strRange []int
 const numMatchStartSize = 4
 const numReadBufferStartSize = 256
 
-var mutex sync.Mutex
+// var mutex sync.Mutex
 
 type MatchData struct {
 	count   int
@@ -51,8 +51,8 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 	patternCharPtr := C.CString(pattern)
 	defer C.free(unsafe.Pointer(patternCharPtr))
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	// mutex.Lock()
+	// defer mutex.Unlock()
 	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.errorInfo, &re.errorBuf)
 	if error_code != C.ONIG_NORMAL {
 		err = errors.New(C.GoString(re.errorBuf))
@@ -95,7 +95,7 @@ func MustCompileWithOption(str string, option int) *Regexp {
 }
 
 func (re *Regexp) Free() {
-	mutex.Lock()
+	// mutex.Lock()
 	if re.regex != nil {
 		C.onig_free(re.regex)
 		re.regex = nil
@@ -104,7 +104,7 @@ func (re *Regexp) Free() {
 		C.onig_region_free(re.region, 1)
 		re.region = nil
 	}
-	mutex.Unlock()
+	// mutex.Unlock()
 	if re.errorInfo != nil {
 		C.free(unsafe.Pointer(re.errorInfo))
 		re.errorInfo = nil
