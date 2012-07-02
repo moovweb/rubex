@@ -50,7 +50,7 @@ type Regexp struct {
 
 func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 
-	startTime := time.Now().UnixNano()
+	startTime := time.Now()
 	NewRegexpCount++
 	
 	re = &Regexp{pattern: pattern}
@@ -73,7 +73,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 		re.namedGroupInfo = re.getNamedGroupInfo()
 	}
 
-	NewRegexpTime += time.Now().UnixNano() - startTime
+	NewRegexpSum += time.Since(startTime)
 
 	return re, err
 }
@@ -83,10 +83,10 @@ func Compile(str string) (*Regexp, error) {
 }
 
 var (
-	NewRegexpCount int64
-	NewRegexpTime int64
-	FreeCount int64
-	FreeTime int64
+	NewRegexpSum time.Duration
+	NewRegexpCount time.Duration
+	FreeSum time.Duration
+	FreeCount time.Duration
 )
 
 func MustCompile(str string) *Regexp {
@@ -111,7 +111,7 @@ func MustCompileWithOption(str string, option int) *Regexp {
 }
 
 func (re *Regexp) Free() {
-	startTime := time.Now().UnixNano()
+	startTime := time.Now()
 	FreeCount++
 
 	mutex.Lock()
@@ -132,7 +132,7 @@ func (re *Regexp) Free() {
 		re.errorBuf = nil
 	}
 
-	FreeTime += time.Now().UnixNano() - startTime
+	FreeSum += time.Since(startTime)
 
 }
 
