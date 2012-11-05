@@ -19,9 +19,11 @@ var mu sync.Mutex
 var count = 0
 var re1 []Matcher
 var re2 []Matcher
+
 const NUM = 100
 const NNN = 1000
 const CCC = 100000
+
 var STR = "abcdabc"
 
 type Matcher interface {
@@ -30,8 +32,8 @@ type Matcher interface {
 
 type Task struct {
 	str string
-	m Matcher
-	t time.Time
+	m   Matcher
+	t   time.Time
 }
 
 var TaskChann chan *Task
@@ -39,12 +41,12 @@ var TaskChann chan *Task
 func init() {
 	re1 = make([]Matcher, NUM)
 	re2 = make([]Matcher, NUM)
-	for i := 0; i < NUM; i ++ {
+	for i := 0; i < NUM; i++ {
 		re1[i] = regexp.MustCompile("[a-c]*$")
 		re2[i] = re.MustCompile("[a-c]*$")
 	}
 	TaskChann = make(chan *Task, 100)
-	for i := 0; i < 10; i ++ {
+	for i := 0; i < 10; i++ {
 		STR += STR
 	}
 	println("len:", len(STR))
@@ -53,7 +55,7 @@ func init() {
 func render_pages(name string, marray []Matcher, num_routines, num_renders int) {
 	for i := 0; i < num_routines; i++ {
 		m := marray[i]
-		go func () {
+		go func() {
 			runtime.LockOSThread()
 			for j := 0; j < num_renders; j++ {
 				var totalDuration int64 = 0
@@ -69,7 +71,7 @@ func render_pages(name string, marray []Matcher, num_routines, num_renders int) 
 					mu.Unlock()
 					totalDuration += time.Since(t).Nanoseconds()
 				}
-				println(name + "-average: ",  totalDuration/int64(1000*NNN), "us")
+				println(name+"-average: ", totalDuration/int64(1000*NNN), "us")
 			}
 		}()
 	}
@@ -77,14 +79,14 @@ func render_pages(name string, marray []Matcher, num_routines, num_renders int) 
 
 func render_pages2(name string, marray []Matcher, num_routines, num_renders int) {
 	go func() {
-		for i := 0; i < CCC; i ++ {
+		for i := 0; i < CCC; i++ {
 			t := &Task{str: STR, m: marray[0], t: time.Now()}
 			TaskChann <- t
 		}
 	}()
 	for i := 0; i < num_routines; i++ {
 		m := marray[i]
-		go func () {
+		go func() {
 			runtime.LockOSThread()
 			for j := 0; j < num_renders; j++ {
 				var totalDuration int64 = 0
@@ -93,13 +95,11 @@ func render_pages2(name string, marray []Matcher, num_routines, num_renders int)
 					m.MatchString(task.str)
 					totalDuration += time.Since(task.t).Nanoseconds()
 				}
-				println(name + "-average: ",  totalDuration/int64(1000*NNN), "us")
+				println(name+"-average: ", totalDuration/int64(1000*NNN), "us")
 			}
 		}()
 	}
 }
-
-
 
 func main() {
 	cpu, _ := strconv.Atoi(os.Args[1])
@@ -110,26 +110,25 @@ func main() {
 	num_routines := 6
 	num_renders := 20
 
-	if method == "chan" {	
-	if lib == "rubex" {
-		render_pages2("rubex", re2, num_routines, num_renders)
+	if method == "chan" {
+		if lib == "rubex" {
+			render_pages2("rubex", re2, num_routines, num_renders)
+		} else {
+			render_pages2("regexp", re1, num_routines, num_renders)
+		}
 	} else {
-		render_pages2("regexp", re1, num_routines, num_renders)
-	}
-	} else {
-	if lib == "rubex" {
-		render_pages("rubex", re2, num_routines, num_renders)
-	} else {
-		render_pages("regexp", re1, num_routines, num_renders)
-	}
+		if lib == "rubex" {
+			render_pages("rubex", re2, num_routines, num_renders)
+		} else {
+			render_pages("regexp", re1, num_routines, num_renders)
+		}
 
 	}
 	d, _ := time.ParseDuration("5s")
-	for i := 0; i < 100; i ++ {
+	for i := 0; i < 100; i++ {
 		println("goroutine:", runtime.NumGoroutine())
 		time.Sleep(d)
-		
-	}
-	println ("Done")
-}
 
+	}
+	println("Done")
+}

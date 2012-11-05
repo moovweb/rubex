@@ -196,7 +196,7 @@ func TestFindStringIndex(t *testing.T) {
 func TestFindStringContentType(t *testing.T) {
 	pattern := `text/(.*);\s*charset\s*=\s*(.*)`
 	regex := MustCompile(pattern)
-	
+
 	data1 := "text/html; charset=utf8"
 	data2 := "text/;charset=iso-8859-1"
 	data3 := "image/png"
@@ -215,7 +215,6 @@ func TestFindStringContentType(t *testing.T) {
 		t.Errorf("does not match content-type 3")
 	}
 }
-
 
 func TestFindReaderIndex(t *testing.T) {
 	for _, test := range findTests {
