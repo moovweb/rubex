@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"runtime"
+	//"runtime"
 	"strconv"
 	"sync"
 	"unicode/utf8"
@@ -65,7 +65,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 			re.matchData.indexes[i] = make([]int, numCapturesInPattern*2)
 		}
 		re.namedGroupInfo = re.getNamedGroupInfo()
-		runtime.SetFinalizer(re, (*Regexp).Free)
+		//runtime.SetFinalizer(re, (*Regexp).Free)
 	}
 	return re, err
 }
