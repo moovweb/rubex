@@ -58,8 +58,7 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 		err = errors.New(C.GoString(re.errorBuf))
 	} else {
 		err = nil
-		// casting to int32 first and then to int because int is 64 bits in go1.1
-		numCapturesInPattern := int(int32(C.onig_number_of_captures(re.regex))) + 1
+		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
 		re.matchData = &MatchData{}
 		re.matchData.indexes = make([][]int, numMatchStartSize)
 		for i := 0; i < numMatchStartSize; i++ {
@@ -117,7 +116,7 @@ func (re *Regexp) Free() {
 }
 
 func (re *Regexp) getNamedGroupInfo() (namedGroupInfo NamedGroupInfo) {
-	numNamedGroups := int(int32(C.onig_number_of_names(re.regex)))
+	numNamedGroups := int(C.onig_number_of_names(re.regex))
 	//when any named capture exisits, there is no numbered capture even if there are unnamed captures
 	if numNamedGroups > 0 {
 		namedGroupInfo = make(map[string]int)
@@ -127,8 +126,7 @@ func (re *Regexp) getNamedGroupInfo() (namedGroupInfo NamedGroupInfo) {
 		groupNumbers := make([]int, numNamedGroups)
 		bufferPtr := unsafe.Pointer(&nameBuffer[0])
 		numbersPtr := unsafe.Pointer(&groupNumbers[0])
-		// casting to int32 first and then to int because int is 64 bits in go1.1
-		length := int(int32(C.GetCaptureNames(re.regex, bufferPtr, (C.int)(bufferSize), (*C.int)(numbersPtr))))
+		length := int(C.GetCaptureNames(re.regex, bufferPtr, (C.int)(bufferSize), (*C.int)(numbersPtr)))
 		if length > 0 {
 			namesAsBytes := bytes.Split(nameBuffer[:length], ([]byte)(";"))
 			if len(namesAsBytes) != numNamedGroups {
@@ -176,15 +174,13 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 	capturesPtr := unsafe.Pointer(&(matchData.indexes[matchData.count][0]))
 	numCaptures := 0
 	numCapturesPtr := unsafe.Pointer(&numCaptures)
-	// casting to int32 first and then to int because int is 64 bits in go1.1
-	pos := int(int32(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr), (*C.int)(numCapturesPtr))))
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr), (*C.int)(numCapturesPtr)))
 	if pos >= 0 {
 		if numCaptures <= 0 {
 			panic("cannot have 0 captures when processing a match")
 		}
 		match = matchData.indexes[matchData.count][:numCaptures*2]
-		// casting to int32 first and then to int because int is 64 bits in go1.1
-		numCapturesInPattern := int(int32(C.onig_number_of_captures(re.regex))) + 1
+		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
 		if numCapturesInPattern != numCaptures {
 			log.Fatalf("expected %d captures but got %d\n", numCapturesInPattern, numCaptures)
 		}
@@ -205,8 +201,7 @@ func (re *Regexp) match(b []byte, n int, offset int) bool {
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-	// casting to int32 first and then to int because int is 64 bits in go1.1
-	pos := int(int32(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(nil), (*C.int)(nil))))
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(nil), (*C.int)(nil)))
 	return pos >= 0
 }
 
@@ -443,7 +438,7 @@ func (re *Regexp) MatchString(s string) bool {
 }
 
 func (re *Regexp) NumSubexp() int {
-	return int(int32(C.onig_number_of_captures(re.regex)))
+	return (int)(C.onig_number_of_captures(re.regex))
 }
 
 func (re *Regexp) getNamedCapture(name []byte, capturedBytes [][]byte) []byte {
