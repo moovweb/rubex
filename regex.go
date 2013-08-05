@@ -161,6 +161,9 @@ func (re *Regexp) processMatch(numCaptures int) (match []int32) {
 }
 
 func (re *Regexp) ClearMatchData() {
+	if re.matchData == nil {
+		panic(fmt.Sprintf("invalid regexp: `%s`", re.pattern))
+	}
 	matchData := re.matchData
 	matchData.count = 0
 }
