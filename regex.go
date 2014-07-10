@@ -1,8 +1,8 @@
 package rubex
 
 /*
-#cgo CFLAGS: -I../../clibs/include
-#cgo LDFLAGS: -L../../clibs/lib -lonig
+#cgo CFLAGS: -I../../../../clibs/include
+#cgo LDFLAGS: -L../../../../clibs/lib -lonig
 #include <stdlib.h>
 #include <oniguruma.h>
 #include "chelper.h"
