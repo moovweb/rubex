@@ -1,8 +1,9 @@
 package rubex
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../../../clibs/include
-#cgo LDFLAGS: -L${SRCDIR}/../../../../../clibs/lib -lonig
+#cgo !linux CFLAGS: -I${SRCDIR}/../../../../../clibs/include
+#cgo !linux LDFLAGS: -L${SRCDIR}/../../../../../clibs/lib -lonig
+#cgo linux pkg-config: oniguruma
 #include <stdlib.h>
 #include <oniguruma.h>
 #include "chelper.h"
@@ -40,8 +41,6 @@ type Regexp struct {
 	pattern        string
 	regex          C.OnigRegex
 	region         *C.OnigRegion
-	errorInfo      *C.OnigErrorInfo
-	errorBuf       *C.char
 	matchData      *MatchData
 	namedGroupInfo NamedGroupInfo
 }
@@ -53,9 +52,12 @@ func NewRegexp(pattern string, option int) (re *Regexp, err error) {
 
 	mutex.Lock()
 	defer mutex.Unlock()
-	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, &re.errorInfo, &re.errorBuf)
+	errorBufPtr := (*C.char)(C.malloc(C.ONIG_MAX_ERROR_MESSAGE_LEN))
+	defer C.free(unsafe.Pointer(errorBufPtr))
+
+	error_code := C.NewOnigRegex(patternCharPtr, C.int(len(pattern)), C.int(option), &re.regex, &re.region, errorBufPtr)
 	if error_code != C.ONIG_NORMAL {
-		err = errors.New(C.GoString(re.errorBuf))
+		err = errors.New(C.GoString(errorBufPtr))
 	} else {
 		err = nil
 		numCapturesInPattern := int(C.onig_number_of_captures(re.regex)) + 1
@@ -105,14 +107,6 @@ func (re *Regexp) Free() {
 		re.region = nil
 	}
 	mutex.Unlock()
-	if re.errorInfo != nil {
-		C.free(unsafe.Pointer(re.errorInfo))
-		re.errorInfo = nil
-	}
-	if re.errorBuf != nil {
-		C.free(unsafe.Pointer(re.errorBuf))
-		re.errorBuf = nil
-	}
 }
 
 func (re *Regexp) getNamedGroupInfo() (namedGroupInfo NamedGroupInfo) {
@@ -174,7 +168,7 @@ func (re *Regexp) find(b []byte, n int, offset int) (match []int) {
 	capturesPtr := unsafe.Pointer(&(matchData.indexes[matchData.count][0]))
 	numCaptures := int32(0)
 	numCapturesPtr := unsafe.Pointer(&numCaptures)
-	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(capturesPtr), (*C.int)(numCapturesPtr)))
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, (*C.int)(capturesPtr), (*C.int)(numCapturesPtr)))
 	if pos >= 0 {
 		if numCaptures <= 0 {
 			panic("cannot have 0 captures when processing a match")
@@ -205,7 +199,7 @@ func (re *Regexp) match(b []byte, n int, offset int) bool {
 		b = []byte{0}
 	}
 	ptr := unsafe.Pointer(&b[0])
-	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, re.errorInfo, (*C.char)(nil), (*C.int)(nil), (*C.int)(nil)))
+	pos := int(C.SearchOnigRegex((ptr), C.int(n), C.int(offset), C.int(ONIG_OPTION_DEFAULT), re.regex, re.region, (*C.int)(nil), (*C.int)(nil)))
 	return pos >= 0
 }
 
