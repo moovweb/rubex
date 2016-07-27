@@ -10,19 +10,22 @@ The library calls the Oniguruma regex library (5.9.2, the latest release as of n
 ## Installation ##
 
 First, ensure you have Oniguruma installed. On OS X with brew, its as simple as
-    
-    brew install oniguruma
+```shell
+$ brew install oniguruma
+```
     
 On Ubuntu...
-
-    sudo apt-get install libonig2
+```shell
+$ sudo apt-get install libonig2
+```
 
 Now that we've got Oniguruma installed, we can install Rubex!
-
-    go install github.com/moovweb/rubex
+```shell
+$ go install github.com/moovweb/rubex
+```
 
 ## Example Usage ##
-
+```go
     import "rubex"
     
     rxp := rubex.MustCompile("[a-z]*")
@@ -35,4 +38,4 @@ Now that we've got Oniguruma installed, we can install Rubex!
     } else {
         // no good
     }
-
+```
