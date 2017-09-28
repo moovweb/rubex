@@ -15,7 +15,7 @@ First, ensure you have Oniguruma installed. On OS X with brew, its as simple as
     
 On Ubuntu...
 
-    sudo apt-get install libonig2
+    sudo apt-get install libonig-dev
 
 Now that we've got Oniguruma installed, we can install Rubex!
 
